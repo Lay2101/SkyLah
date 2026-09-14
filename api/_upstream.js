@@ -16,6 +16,21 @@ const POSSIBLE_ENV_VARS = [
 ];
 
 export function getCredentialInfo() {
+  const raw = process.env.DATA_GOV_SG_API_KEY;
+  if (
+    typeof raw === "string" &&
+    raw.trim().length > 0 &&
+    raw.trim().toLowerCase() !== "undefined" &&
+    raw.trim().toLowerCase() !== "null"
+  ) {
+    return {
+      varName: "DATA_GOV_SG_API_KEY",
+      isConfigured: true,
+      value: raw.trim(),
+    };
+  }
+
+  // Check fallback variables if any
   for (const name of POSSIBLE_ENV_VARS) {
     if (process.env[name] !== undefined) {
       const rawVal = process.env[name];
@@ -24,15 +39,16 @@ export function getCredentialInfo() {
         rawVal.trim().length > 0 &&
         rawVal.trim().toLowerCase() !== "undefined" &&
         rawVal.trim().toLowerCase() !== "null";
-      return {
-        varName: name,
-        isConfigured: isValid,
-        value: isValid ? rawVal.trim() : null,
-      };
+      if (isValid) {
+        return {
+          varName: name,
+          isConfigured: true,
+          value: rawVal.trim(),
+        };
+      }
     }
   }
 
-  // Default variable name expected in deployment context
   return {
     varName: "DATA_GOV_SG_API_KEY",
     isConfigured: false,
