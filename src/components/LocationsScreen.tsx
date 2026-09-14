@@ -22,6 +22,8 @@ interface LocationsScreenProps {
   onSelectAreaAndOpenToday: (areaName: string) => void;
   isLoading: boolean;
   validPeriod: { start: string | null; end: string | null; text: string | null } | null;
+  statusSentence?: string;
+  onRetry?: () => void;
 }
 
 export const LocationsScreen: React.FC<LocationsScreenProps> = ({
@@ -30,6 +32,8 @@ export const LocationsScreen: React.FC<LocationsScreenProps> = ({
   onSelectAreaAndOpenToday,
   isLoading,
   validPeriod,
+  statusSentence,
+  onRetry,
 }) => {
   const [searchQuery, setSearchQuery] = useState("");
 
@@ -84,6 +88,24 @@ export const LocationsScreen: React.FC<LocationsScreenProps> = ({
       {isLoading && allAreas.length === 0 && (
         <div className="py-12 text-center bg-white rounded-2xl border border-slate-200 text-slate-600">
           <p className="text-base font-semibold">Loading Singapore forecast areas…</p>
+        </div>
+      )}
+
+      {/* Error state if areas failed to load */}
+      {!isLoading && allAreas.length === 0 && (
+        <div className="py-10 px-4 text-center bg-white rounded-2xl border border-amber-300 text-slate-800 space-y-3">
+          <p className="text-base font-bold text-amber-950">
+            {statusSentence || "Forecast areas are currently unavailable."}
+          </p>
+          {onRetry && (
+            <button
+              type="button"
+              onClick={onRetry}
+              className="px-4 py-2 bg-amber-800 hover:bg-amber-900 text-white font-semibold text-sm rounded-lg transition-colors cursor-pointer"
+            >
+              Retry
+            </button>
+          )}
         </div>
       )}
 

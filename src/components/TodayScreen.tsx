@@ -23,8 +23,11 @@ export type ForecastState =
   | "loading"
   | "success"
   | "empty"
+  | "not_found"
+  | "timeout"
+  | "unreachable"
   | "refused"
-  | "unreachable";
+  | "invalid_response";
 
 interface TodayScreenProps {
   selectedAreaName: string;
@@ -48,7 +51,6 @@ export const TodayScreen: React.FC<TodayScreenProps> = ({
   forecastState = "loading",
   statusSentence,
   isLoading,
-  errorMessage,
   validPeriod,
   sourceTimestamps,
   onRetry,
@@ -58,24 +60,33 @@ export const TodayScreen: React.FC<TodayScreenProps> = ({
     (a) => a.name.toLowerCase() === selectedAreaName.toLowerCase()
   );
   const realForecastText = currentArea?.forecast || "";
-  const isExpired = isForecastExpired(validPeriod?.end);
 
-  // Demo values (strictly separated and labelled)
+  // Check if forecast timestamp is older than 2.5 hours
+  const isStale = isForecastExpired(sourceTimestamps?.updateTimestamp || null);
+
+  // Fictional demo metrics for non-supplied values (temperature, humidity, rain chance)
   const demoMetrics = getDemoMetricsForArea(selectedAreaName);
   const demoUmbrella = deriveUmbrellaSuggestion(
     demoMetrics.rainChancePercent,
-    realForecastText || "Cloudy"
+    realForecastText
   );
 
-  // Quick popular areas for 1-tap switching
-  const quickAreas = ["City", "Ang Mo Kio", "Bedok", "Bishan", "Jurong East", "Woodlands"];
+  // Quick areas for convenient mobile switching
+  const quickAreas = ["City", "Ang Mo Kio", "Bedok", "Jurong West", "Woodlands", "Tampines"];
+
+  const isErrorState =
+    forecastState === "not_found" ||
+    forecastState === "timeout" ||
+    forecastState === "unreachable" ||
+    forecastState === "refused" ||
+    forecastState === "invalid_response";
 
   return (
-    <div className="space-y-5 pb-4">
-      {/* Location Selector (from API actual forecast areas) */}
+    <div className="space-y-4 pb-6">
+      {/* Location Selector Card */}
       <section
-        id="location-selector-section"
-        className="bg-white rounded-2xl p-4 border border-slate-200 shadow-xs"
+        id="location-selector-card"
+        className="bg-white rounded-2xl p-4 sm:p-5 border border-slate-200 shadow-xs"
       >
         <label
           htmlFor="neighbourhood-select"
@@ -91,10 +102,20 @@ export const TodayScreen: React.FC<TodayScreenProps> = ({
             value={selectedAreaName}
             onChange={(e) => onSelectArea(e.target.value)}
             disabled={allAreas.length === 0}
-            className="w-full min-h-[52px] text-lg font-bold text-slate-900 bg-slate-50 border-2 border-slate-300 rounded-xl px-4 py-2.5 focus:border-sky-600 focus:bg-white focus:outline-hidden focus:ring-3 focus:ring-sky-100 transition-colors"
+            className={`w-full min-h-[52px] text-lg font-bold text-slate-900 bg-slate-50 border-2 rounded-xl px-4 py-2.5 focus:border-sky-600 focus:bg-white focus:outline-hidden focus:ring-3 focus:ring-sky-100 transition-colors ${
+              allAreas.length === 0 && !isLoading
+                ? "border-amber-300 bg-amber-50/40 text-slate-600"
+                : "border-slate-300"
+            }`}
           >
-            {allAreas.length === 0 ? (
-              <option value="City">City (Loading forecast areas...)</option>
+            {isLoading ? (
+              <option value="City" disabled>
+                Loading forecast areas…
+              </option>
+            ) : allAreas.length === 0 ? (
+              <option value="City" disabled>
+                Forecast areas unavailable
+              </option>
             ) : (
               allAreas.map((item) => (
                 <option key={item.name} value={item.name} className="text-base py-1">
@@ -104,6 +125,30 @@ export const TodayScreen: React.FC<TodayScreenProps> = ({
             )}
           </select>
         </div>
+
+        {/* Inline error notice below selector if areas failed to load */}
+        {allAreas.length === 0 && !isLoading && (
+          <div
+            id="location-selector-error"
+            className="mt-2.5 p-3 bg-amber-50 border border-amber-200 rounded-xl flex items-center justify-between gap-2 text-xs text-amber-900"
+          >
+            <div className="flex items-center gap-2 min-w-0">
+              <AlertTriangle className="w-4 h-4 text-amber-700 shrink-0" aria-hidden="true" />
+              <span className="truncate">
+                Forecast areas unavailable. {statusSentence || "Please check connection."}
+              </span>
+            </div>
+            {onRetry && (
+              <button
+                type="button"
+                onClick={onRetry}
+                className="px-2.5 py-1 bg-amber-800 hover:bg-amber-900 text-white font-semibold rounded-md transition-colors shrink-0 cursor-pointer text-xs"
+              >
+                Retry
+              </button>
+            )}
+          </div>
+        )}
 
         {/* Quick Tap Area Chips */}
         {allAreas.length > 0 && (
@@ -124,7 +169,7 @@ export const TodayScreen: React.FC<TodayScreenProps> = ({
                     className={`min-h-[44px] px-3 py-2 text-left text-sm font-medium rounded-lg border transition-all flex items-center justify-between ${
                       isSelected
                         ? "bg-sky-700 text-white border-sky-700 font-semibold shadow-xs"
-                        : "bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100"
+                        : "bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100 cursor-pointer"
                     }`}
                   >
                     <span className="truncate">{areaName}</span>
@@ -176,23 +221,22 @@ export const TodayScreen: React.FC<TodayScreenProps> = ({
           )}
         </div>
 
-        {/* Expired Forecast Banner */}
-        {isExpired && (
+        {/* Stale Data Warning if older than 2.5 hours */}
+        {isStale && sourceTimestamps?.updateTimestamp && (
           <div
-            id="forecast-expired-alert"
-            className="mb-4 p-3 bg-amber-50 border border-amber-300 rounded-xl text-amber-950 flex items-start gap-2.5 text-sm"
+            id="stale-forecast-warning"
+            className="mb-4 p-3 bg-amber-50 border border-amber-300 rounded-xl text-amber-950 text-xs flex items-start gap-2"
           >
-            <AlertTriangle className="w-5 h-5 text-amber-700 shrink-0 mt-0.5" />
+            <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
             <div>
-              <p className="font-bold">Forecast Status</p>
-              <p className="mt-0.5 text-xs sm:text-sm">
-                This forecast has expired; an updated forecast is not available yet.
-              </p>
+              <span className="font-bold">Notice:</span> The latest forecast timestamp from
+              data.gov.sg is over 2 hours old (last updated at{" "}
+              {formatSingaporeTime(sourceTimestamps.updateTimestamp)} SGT).
             </div>
           </div>
         )}
 
-        {/* State 1: Loading (distinct sentence, not a bare spinner) */}
+        {/* State 1: Loading */}
         {forecastState === "loading" && (
           <div
             id="weather-state-loading"
@@ -207,17 +251,17 @@ export const TodayScreen: React.FC<TodayScreenProps> = ({
           </div>
         )}
 
-        {/* State 2: Upstream Refused (Case 3) */}
-        {forecastState === "refused" && (
+        {/* State 2: Route Not Found (404) */}
+        {forecastState === "not_found" && (
           <div
-            id="weather-state-refused"
+            id="weather-state-not-found"
             className="py-8 px-4 text-center space-y-3 bg-amber-50 rounded-xl border border-amber-300 text-amber-950"
           >
             <div className="flex justify-center">
               <AlertTriangle className="w-8 h-8 text-amber-700" />
             </div>
             <p className="text-base font-bold leading-relaxed max-w-sm mx-auto">
-              The weather service declined this request. Please try again later.
+              {statusSentence || "The weather endpoint was not found on this server."}
             </p>
             {onRetry && (
               <button
@@ -232,7 +276,57 @@ export const TodayScreen: React.FC<TodayScreenProps> = ({
           </div>
         )}
 
-        {/* State 3: Upstream Unreachable (Case 4) */}
+        {/* State 3: Upstream Timeout (504) */}
+        {forecastState === "timeout" && (
+          <div
+            id="weather-state-timeout"
+            className="py-8 px-4 text-center space-y-3 bg-amber-50 rounded-xl border border-amber-300 text-amber-950"
+          >
+            <div className="flex justify-center">
+              <Clock className="w-8 h-8 text-amber-700" />
+            </div>
+            <p className="text-base font-bold leading-relaxed max-w-sm mx-auto">
+              {statusSentence || "The weather service request timed out. Please try again shortly."}
+            </p>
+            {onRetry && (
+              <button
+                type="button"
+                onClick={onRetry}
+                className="mt-2 min-h-[44px] px-4 py-2 bg-amber-800 hover:bg-amber-900 text-white text-sm font-semibold rounded-lg transition-colors inline-flex items-center gap-2 cursor-pointer"
+              >
+                <RefreshCw className="w-4 h-4" />
+                Retry
+              </button>
+            )}
+          </div>
+        )}
+
+        {/* State 4: Upstream Refused (401, 403, 429) */}
+        {forecastState === "refused" && (
+          <div
+            id="weather-state-refused"
+            className="py-8 px-4 text-center space-y-3 bg-amber-50 rounded-xl border border-amber-300 text-amber-950"
+          >
+            <div className="flex justify-center">
+              <AlertTriangle className="w-8 h-8 text-amber-700" />
+            </div>
+            <p className="text-base font-bold leading-relaxed max-w-sm mx-auto">
+              {statusSentence || "The weather service declined this request. Please try again later."}
+            </p>
+            {onRetry && (
+              <button
+                type="button"
+                onClick={onRetry}
+                className="mt-2 min-h-[44px] px-4 py-2 bg-amber-800 hover:bg-amber-900 text-white text-sm font-semibold rounded-lg transition-colors inline-flex items-center gap-2 cursor-pointer"
+              >
+                <RefreshCw className="w-4 h-4" />
+                Retry
+              </button>
+            )}
+          </div>
+        )}
+
+        {/* State 5: Upstream Unreachable (Network / DNS error) */}
         {forecastState === "unreachable" && (
           <div
             id="weather-state-unreachable"
@@ -242,7 +336,7 @@ export const TodayScreen: React.FC<TodayScreenProps> = ({
               <AlertTriangle className="w-8 h-8 text-rose-600" />
             </div>
             <p className="text-base font-bold leading-relaxed max-w-sm mx-auto">
-              We couldn’t reach the weather service. Please try again shortly.
+              {statusSentence || "We couldn’t reach the weather service. Please try again shortly."}
             </p>
             {onRetry && (
               <button
@@ -257,7 +351,32 @@ export const TodayScreen: React.FC<TodayScreenProps> = ({
           </div>
         )}
 
-        {/* State 4: Data Empty (Case 2) */}
+        {/* State 6: Invalid Response Structure (502) */}
+        {forecastState === "invalid_response" && (
+          <div
+            id="weather-state-invalid-response"
+            className="py-8 px-4 text-center space-y-3 bg-rose-50 rounded-xl border border-rose-200 text-rose-950"
+          >
+            <div className="flex justify-center">
+              <AlertTriangle className="w-8 h-8 text-rose-600" />
+            </div>
+            <p className="text-base font-bold leading-relaxed max-w-sm mx-auto">
+              {statusSentence || "The weather service returned an invalid response. Please try again shortly."}
+            </p>
+            {onRetry && (
+              <button
+                type="button"
+                onClick={onRetry}
+                className="mt-2 min-h-[44px] px-4 py-2 bg-rose-700 hover:bg-rose-800 text-white text-sm font-semibold rounded-lg transition-colors inline-flex items-center gap-2 cursor-pointer"
+              >
+                <RefreshCw className="w-4 h-4" />
+                Retry
+              </button>
+            )}
+          </div>
+        )}
+
+        {/* State 7: Empty Data */}
         {(forecastState === "empty" || (forecastState === "success" && !realForecastText)) && (
           <div
             id="weather-state-empty"
@@ -270,7 +389,7 @@ export const TodayScreen: React.FC<TodayScreenProps> = ({
           </div>
         )}
 
-        {/* State 5: Real Live Forecast Display */}
+        {/* State 8: Live Sourced Forecast Display */}
         {forecastState === "success" && realForecastText && (
           <div
             id="weather-state-success"
@@ -288,7 +407,7 @@ export const TodayScreen: React.FC<TodayScreenProps> = ({
                   {realForecastText}
                 </div>
                 <div className="text-xs text-slate-500 font-medium mt-1">
-                  Source: data.gov.sg 2-Hour Weather Forecast
+                  Source: Singapore data.gov.sg 2-Hour Weather Forecast
                 </div>
               </div>
             </div>
@@ -408,7 +527,7 @@ export const TodayScreen: React.FC<TodayScreenProps> = ({
           id="btn-goto-hourly-forecast"
           type="button"
           onClick={onNavigateToHourly}
-          className="w-full min-h-[52px] bg-sky-800 hover:bg-sky-900 text-white font-bold text-base px-5 py-3 rounded-xl flex items-center justify-between transition-colors shadow-xs"
+          className="w-full min-h-[52px] bg-sky-800 hover:bg-sky-900 text-white font-bold text-base px-5 py-3 rounded-xl flex items-center justify-between transition-colors shadow-xs cursor-pointer"
         >
           <span className="flex items-center gap-2">
             <Clock className="w-5 h-5 text-sky-200" aria-hidden="true" />

@@ -12,9 +12,9 @@ function apiDevServerPlugin(): Plugin {
     configureServer(server) {
       server.middlewares.use(async (req, res, next) => {
         const url = req.url ? req.url.split('?')[0] : '';
-        if (url === '/api/skylahweatherforecasting' || url === '/api/weather') {
+        if (url === '/api/weather' || url === '/api/skylahweatherforecasting') {
           try {
-            await skylahHandler(req, res);
+            await weatherHandler(req, res);
           } catch (err) {
             next(err);
           }
@@ -26,6 +26,18 @@ function apiDevServerPlugin(): Plugin {
           } catch (err) {
             next(err);
           }
+          return;
+        }
+        if (url.startsWith('/api/')) {
+          res.statusCode = 404;
+          res.setHeader('Content-Type', 'application/json');
+          res.end(
+            JSON.stringify({
+              error: true,
+              errorType: 'not_found',
+              message: `API route not found: ${url}`,
+            })
+          );
           return;
         }
         next();

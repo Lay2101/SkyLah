@@ -25,13 +25,16 @@ export interface WeatherDataResponse {
   } | null;
   retrievedAt: string;
   empty?: boolean;
+  error?: boolean;
+  errorType?: "not_found" | "timeout" | "unreachable" | "refused" | "invalid_response";
+  message?: string;
 }
 
 export default function App() {
   const [selectedAreaName, setSelectedAreaName] = useState<string>("City");
   const [activeScreen, setActiveScreen] = useState<ScreenId>("today");
 
-  // Four explicit states: loading, empty, refused, unreachable (or success with real data)
+  // Explicit distinct states: loading, empty, not_found, timeout, unreachable, refused, invalid_response, success
   const [forecastState, setForecastState] = useState<ForecastState>("loading");
   const [statusSentence, setStatusSentence] = useState<string>(
     "Getting the latest two-hour forecast…"
@@ -50,34 +53,59 @@ export default function App() {
   } | null>(null);
   const [retrievedAt, setRetrievedAt] = useState<string | null>(null);
 
-  // Fetch all areas once on mount from our serverless function
+  // Fetch all areas once on mount from our serverless function (/api/weather)
   const fetchWeather = useCallback(async () => {
     setForecastState("loading");
     setStatusSentence("Getting the latest two-hour forecast…");
 
     try {
-      // Calls our dedicated serverless function
-      const response = await fetch("/api/skylahweatherforecasting");
+      // 1. Frontend calls /api/weather
+      const response = await fetch("/api/weather", {
+        headers: { Accept: "application/json" },
+      });
 
-      if (!response.ok) {
-        if (response.status === 503 || response.status === 504 || response.status === 502) {
-          // Case 4: Upstream is unreachable
-          setForecastState("unreachable");
-          setStatusSentence("We couldn’t reach the weather service. Please try again shortly.");
+      const contentType = response.headers.get("content-type") || "";
+
+      // Check for non-JSON responses (e.g. server returning HTML 404 or SPA rewrite)
+      if (!contentType.includes("application/json")) {
+        if (response.status === 404) {
+          setForecastState("not_found");
+          setStatusSentence("The weather service endpoint was not found (404).");
         } else {
-          // Case 3: Upstream refused (401, 403, 429, etc.)
-          setForecastState("refused");
-          setStatusSentence("The weather service declined this request. Please try again later.");
+          setForecastState("invalid_response");
+          setStatusSentence("The weather service returned an unexpected response format. Please try again shortly.");
         }
         return;
       }
 
       const data: WeatherDataResponse = await response.json();
 
+      // Handle serverless function or upstream error responses
+      if (!response.ok || data.error) {
+        if (response.status === 404 || data.errorType === "not_found") {
+          setForecastState("not_found");
+          setStatusSentence(data.message || "The weather service endpoint was not found (404).");
+        } else if (response.status === 504 || data.errorType === "timeout") {
+          setForecastState("timeout");
+          setStatusSentence(data.message || "The weather service request timed out. Please try again shortly.");
+        } else if (response.status === 503 || data.errorType === "unreachable") {
+          setForecastState("unreachable");
+          setStatusSentence(data.message || "We couldn’t reach the weather service. Please try again shortly.");
+        } else if (response.status === 502 || data.errorType === "invalid_response") {
+          setForecastState("invalid_response");
+          setStatusSentence(data.message || "The weather service returned an unreadable response. Please try again shortly.");
+        } else {
+          // 401, 403, 429 or other upstream refusal
+          setForecastState("refused");
+          setStatusSentence(data.message || "The weather service declined this request. Please try again later.");
+        }
+        return;
+      }
+
+      // Handle empty forecast data
       if (data.empty || !Array.isArray(data.areas) || data.areas.length === 0) {
-        // Case 2: Data is empty
         setForecastState("empty");
-        setStatusSentence("No forecast is available for this area right now.");
+        setStatusSentence(data.message || "No forecast is available for this area right now.");
         setAreas([]);
         return;
       }
@@ -90,7 +118,7 @@ export default function App() {
       setValidPeriod(data.validPeriod || null);
       setRetrievedAt(data.retrievedAt || new Date().toISOString());
 
-      // Default to "City" if available, else first area
+      // Default to "City" if available, else retain current or fall back to first area
       setSelectedAreaName((current) => {
         const hasCity = data.areas.some(
           (a) => a.name.toLowerCase() === "city"
@@ -102,7 +130,7 @@ export default function App() {
         return exists ? current : data.areas[0].name;
       });
     } catch (_err) {
-      // Case 4: Network error / unreachable
+      // Network failure / client offline / DNS unreachable
       setForecastState("unreachable");
       setStatusSentence("We couldn’t reach the weather service. Please try again shortly.");
     }
@@ -129,7 +157,7 @@ export default function App() {
         onOpenLocations={() => setActiveScreen("locations")}
       />
 
-      {/* Prominent Demo Disclaimer - Displayed on Every Screen */}
+      {/* Sourcing Notice distinguishing live forecast from demo metrics */}
       <DisclaimerBanner />
 
       {/* Main Content Area */}
@@ -144,7 +172,7 @@ export default function App() {
             statusSentence={statusSentence}
             isLoading={forecastState === "loading"}
             errorMessage={
-              forecastState === "refused" || forecastState === "unreachable"
+              forecastState !== "loading" && forecastState !== "success"
                 ? statusSentence
                 : null
             }
@@ -169,6 +197,8 @@ export default function App() {
             onSelectAreaAndOpenToday={handleSelectAreaAndOpenToday}
             isLoading={forecastState === "loading"}
             validPeriod={validPeriod}
+            statusSentence={statusSentence}
+            onRetry={fetchWeather}
           />
         )}
 

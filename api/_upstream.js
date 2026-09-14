@@ -76,11 +76,13 @@ export async function fetchTwoHourForecastUpstream(apiKey = null) {
       error: null,
     };
   } catch (err) {
+    const isTimeout = err?.name === "AbortError";
     return {
       answered: false,
       status: null,
       ok: false,
       response: null,
+      isTimeout,
       error: err,
     };
   } finally {

@@ -1,23 +1,22 @@
 import React from "react";
-import { Info } from "lucide-react";
-import { DEMO_DISCLAIMER, FIXED_DEMO_DATE } from "../data/weatherData";
+import { Info, Radio } from "lucide-react";
 
 export const DisclaimerBanner: React.FC = () => {
   return (
     <div
-      id="demo-disclaimer-banner"
-      className="bg-amber-100 border-b border-amber-300 px-4 py-2 text-amber-950 flex items-center justify-between gap-2 shadow-xs"
+      id="weather-provenance-banner"
+      className="bg-sky-50 border-b border-sky-200 px-4 py-2 text-slate-800 flex items-center justify-between gap-3 shadow-xs"
       role="note"
-      aria-label="Demo Disclaimer"
+      aria-label="Data Sourcing Notice"
     >
-      <div className="flex items-center gap-2">
-        <Info className="w-5 h-5 text-amber-800 shrink-0" aria-hidden="true" />
-        <span className="text-sm font-semibold tracking-tight leading-tight">
-          {DEMO_DISCLAIMER}
-        </span>
+      <div className="flex items-center gap-2 min-w-0">
+        <Radio className="w-4 h-4 text-sky-700 shrink-0 animate-pulse" aria-hidden="true" />
+        <p className="text-xs sm:text-sm font-medium text-slate-700 leading-snug">
+          <strong className="text-sky-900 font-semibold">Live 2-Hour Forecast</strong> sourced directly from Singapore data.gov.sg (NEA/MSS). Temperature, humidity, rain chance %, and 12-hour predictions are demo values.
+        </p>
       </div>
-      <span className="hidden sm:inline-block text-xs font-medium bg-amber-200 text-amber-900 px-2 py-0.5 rounded-sm">
-        {FIXED_DEMO_DATE}
+      <span className="hidden sm:inline-flex items-center gap-1 text-[11px] font-bold uppercase tracking-wider bg-sky-100 text-sky-800 px-2.5 py-0.5 rounded-full border border-sky-300 shrink-0">
+        Live Sourced
       </span>
     </div>
   );

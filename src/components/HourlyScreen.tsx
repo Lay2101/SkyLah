@@ -11,7 +11,6 @@ import {
 import {
   getHourlyForecastsForArea,
   deriveLowestRainHour,
-  FIXED_DEMO_DATE,
 } from "../data/weatherData";
 import { WeatherIcon } from "./WeatherIcon";
 
@@ -47,7 +46,7 @@ export const HourlyScreen: React.FC<HourlyScreenProps> = ({
             </h1>
             <p className="text-xs text-slate-500 flex items-center gap-1 mt-0.5">
               <Calendar className="w-3.5 h-3.5" />
-              {FIXED_DEMO_DATE} &bull; 12 Consecutive Hours (SGT)
+              12 Consecutive Hours &bull; Demo Hourly Projection (SGT)
             </p>
           </div>
 
