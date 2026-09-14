@@ -1,7 +1,7 @@
 import React from "react";
 import { SunMedium, Clock, MapPinned } from "lucide-react";
 
-export type ScreenId = "today" | "hourly" | "locations";
+export type ScreenId = "today" | "locations";
 
 interface NavigationProps {
   activeScreen: ScreenId;
@@ -15,20 +15,14 @@ export const Navigation: React.FC<NavigationProps> = ({
   const tabs = [
     {
       id: "today" as ScreenId,
-      label: "Today",
-      subtext: "Current & Umbrella",
+      label: "Forecast",
+      subtext: "2-Hour Weather",
       icon: SunMedium,
     },
     {
-      id: "hourly" as ScreenId,
-      label: "Next 12 Hours",
-      subtext: "Head Out Guide",
-      icon: Clock,
-    },
-    {
       id: "locations" as ScreenId,
-      label: "My Locations",
-      subtext: "All 6 Areas",
+      label: "All Areas",
+      subtext: "Compare Areas",
       icon: MapPinned,
     },
   ];

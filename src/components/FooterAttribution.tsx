@@ -36,9 +36,6 @@ export const FooterAttribution: React.FC<FooterAttributionProps> = ({ retrievedA
         </a>
         .
       </p>
-      <p className="text-[11px] text-slate-400">
-        Demo temperature, humidity, rain chance %, and 12-hour hourly projection are fictional test values and not part of the official 2-hour forecast.
-      </p>
     </footer>
   );
 };

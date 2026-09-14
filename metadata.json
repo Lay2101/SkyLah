@@ -1,6 +1,6 @@
 {
   "name": "SkyLah",
-  "description": "Weather forecast web product helping commuters in Singapore decide when to head out and whether they need an umbrella.",
+  "description": "Singapore weather forecast app displaying official 2-hour forecasts from data.gov.sg across neighbourhoods.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

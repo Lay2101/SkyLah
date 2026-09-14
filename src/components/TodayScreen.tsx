@@ -1,22 +1,13 @@
 import React from "react";
 import {
-  Umbrella,
-  Droplets,
   MapPin,
   Clock,
-  ArrowRight,
   AlertTriangle,
   RefreshCw,
   Calendar,
-  Layers,
   HelpCircle,
 } from "lucide-react";
-import {
-  formatSingaporeTime,
-  isForecastExpired,
-  getDemoMetricsForArea,
-  deriveUmbrellaSuggestion,
-} from "../data/weatherData";
+import { formatSingaporeTime, isForecastExpired } from "../data/weatherData";
 import { WeatherIcon } from "./WeatherIcon";
 
 export type ForecastState =
@@ -33,7 +24,6 @@ interface TodayScreenProps {
   selectedAreaName: string;
   allAreas: Array<{ name: string; forecast: string }>;
   onSelectArea: (areaName: string) => void;
-  onNavigateToHourly: () => void;
   forecastState?: ForecastState;
   statusSentence?: string;
   isLoading: boolean;
@@ -47,7 +37,6 @@ export const TodayScreen: React.FC<TodayScreenProps> = ({
   selectedAreaName,
   allAreas,
   onSelectArea,
-  onNavigateToHourly,
   forecastState = "loading",
   statusSentence,
   isLoading,
@@ -61,25 +50,11 @@ export const TodayScreen: React.FC<TodayScreenProps> = ({
   );
   const realForecastText = currentArea?.forecast || "";
 
-  // Check if forecast timestamp is older than 2.5 hours
-  const isStale = isForecastExpired(sourceTimestamps?.updateTimestamp || null);
-
-  // Fictional demo metrics for non-supplied values (temperature, humidity, rain chance)
-  const demoMetrics = getDemoMetricsForArea(selectedAreaName);
-  const demoUmbrella = deriveUmbrellaSuggestion(
-    demoMetrics.rainChancePercent,
-    realForecastText
-  );
+  // Check if forecast timestamp is older than validity
+  const isStale = isForecastExpired(validPeriod?.end || sourceTimestamps?.updateTimestamp || null);
 
   // Quick areas for convenient mobile switching
   const quickAreas = ["City", "Ang Mo Kio", "Bedok", "Jurong West", "Woodlands", "Tampines"];
-
-  const isErrorState =
-    forecastState === "not_found" ||
-    forecastState === "timeout" ||
-    forecastState === "unreachable" ||
-    forecastState === "refused" ||
-    forecastState === "invalid_response";
 
   return (
     <div className="space-y-4 pb-6">
@@ -93,7 +68,7 @@ export const TodayScreen: React.FC<TodayScreenProps> = ({
           className="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-2 flex items-center gap-1.5"
         >
           <MapPin className="w-4 h-4 text-sky-700" aria-hidden="true" />
-          Select Forecast Area (Singapore data.gov.sg)
+          Select Forecast Area (data.gov.sg)
         </label>
 
         <div className="relative">
@@ -190,7 +165,7 @@ export const TodayScreen: React.FC<TodayScreenProps> = ({
         <div className="border-b border-slate-100 pb-3 mb-4">
           <div className="flex items-center justify-between flex-wrap gap-2">
             <span className="text-xs font-bold uppercase tracking-wider text-sky-900 bg-sky-100 px-3 py-1 rounded-full border border-sky-300">
-              Next 2 Hours
+              2-Hour Forecast
             </span>
             {sourceTimestamps?.updateTimestamp && (
               <span className="text-xs font-semibold text-slate-600 flex items-center gap-1">
@@ -210,7 +185,7 @@ export const TodayScreen: React.FC<TodayScreenProps> = ({
             <p className="text-xs sm:text-sm text-slate-600 mt-1 flex items-center gap-1.5 font-medium">
               <Calendar className="w-4 h-4 text-sky-700 shrink-0" />
               <span>
-                Forecast Validity:{" "}
+                Valid:{" "}
                 <strong className="text-slate-800 font-semibold">
                   {validPeriod.text
                     ? `${validPeriod.text} SGT`
@@ -221,7 +196,7 @@ export const TodayScreen: React.FC<TodayScreenProps> = ({
           )}
         </div>
 
-        {/* Stale Data Warning if older than 2.5 hours */}
+        {/* Stale Data Warning if expired */}
         {isStale && sourceTimestamps?.updateTimestamp && (
           <div
             id="stale-forecast-warning"
@@ -230,7 +205,7 @@ export const TodayScreen: React.FC<TodayScreenProps> = ({
             <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
             <div>
               <span className="font-bold">Notice:</span> The latest forecast timestamp from
-              data.gov.sg is over 2 hours old (last updated at{" "}
+              data.gov.sg has expired (last updated at{" "}
               {formatSingaporeTime(sourceTimestamps.updateTimestamp)} SGT).
             </div>
           </div>
@@ -393,149 +368,27 @@ export const TodayScreen: React.FC<TodayScreenProps> = ({
         {forecastState === "success" && realForecastText && (
           <div
             id="weather-state-success"
-            className="bg-sky-50/60 p-4 sm:p-5 rounded-xl border border-sky-200"
+            className="bg-sky-50/60 p-5 rounded-xl border border-sky-200"
           >
             <div className="text-xs font-bold uppercase tracking-wider text-sky-800 mb-2">
-              Official 2-Hour Weather Description
+              Current Forecast Description
             </div>
             <div className="flex items-center gap-4">
-              <div className="p-3 bg-white rounded-xl shadow-xs border border-sky-100 shrink-0">
-                <WeatherIcon condition={realForecastText} className="w-12 h-12" size={48} />
+              <div className="p-3.5 bg-white rounded-xl shadow-xs border border-sky-100 shrink-0">
+                <WeatherIcon condition={realForecastText} className="w-14 h-14" size={56} />
               </div>
-              <div>
+              <div className="min-w-0">
                 <div className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight leading-tight">
                   {realForecastText}
                 </div>
-                <div className="text-xs text-slate-500 font-medium mt-1">
-                  Source: Singapore data.gov.sg 2-Hour Weather Forecast
+                <div className="text-xs text-slate-600 font-medium mt-1">
+                  Area: <strong className="text-slate-800">{selectedAreaName}</strong>
                 </div>
               </div>
             </div>
           </div>
         )}
       </section>
-
-      {/* Visually Separate Demo Metrics Section (Fictional Demo Data) */}
-      <section
-        id="demo-metrics-section"
-        className="bg-white rounded-2xl border border-dashed border-slate-300 p-5 shadow-xs space-y-4"
-      >
-        <div className="flex items-center justify-between border-b border-slate-200 pb-2.5">
-          <div className="flex items-center gap-1.5 text-xs font-extrabold uppercase tracking-wide text-amber-800 bg-amber-50 px-2.5 py-1 rounded-md border border-amber-200">
-            <Layers className="w-3.5 h-3.5" />
-            Demo — fictional data
-          </div>
-          <span className="text-[11px] text-slate-500 font-medium">
-            Not supplied by 2-hour API
-          </span>
-        </div>
-
-        <p className="text-xs text-slate-600 leading-relaxed">
-          The official 2-hour weather API does not supply temperature, humidity, rain probability, or umbrella suggestions. The values below are mock demo metrics kept for prototyping:
-        </p>
-
-        {/* Demo Temperature & Chance of Rain */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          {/* Temperature */}
-          <div className="flex items-center gap-3 bg-slate-50 p-3.5 rounded-xl border border-slate-200">
-            <div className="p-2.5 bg-white rounded-lg border border-slate-200 shrink-0">
-              <span className="text-xl font-bold text-slate-700">°C</span>
-            </div>
-            <div>
-              <div className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
-                Demo Temperature
-              </div>
-              <div className="text-2xl font-extrabold text-slate-900">
-                {demoMetrics.temperatureC}°C
-              </div>
-              <div className="text-[11px] text-slate-500">
-                Humidity: {demoMetrics.humidityPercent}% (demo)
-              </div>
-            </div>
-          </div>
-
-          {/* Rain Probability */}
-          <div className="flex items-center gap-3 bg-slate-50 p-3.5 rounded-xl border border-slate-200">
-            <div className="p-2.5 bg-sky-100 rounded-lg border border-sky-200 shrink-0">
-              <Droplets className="w-5 h-5 text-sky-700" aria-hidden="true" />
-            </div>
-            <div className="w-full">
-              <div className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
-                Demo Rain Probability
-              </div>
-              <div className="text-2xl font-extrabold text-sky-900">
-                {demoMetrics.rainChancePercent}%
-              </div>
-              <div className="w-full bg-slate-200 h-1.5 rounded-full mt-1.5 overflow-hidden">
-                <div
-                  className="bg-sky-500 h-full rounded-full"
-                  style={{ width: `${demoMetrics.rainChancePercent}%` }}
-                />
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Umbrella Recommendation Card (Explicitly flagged as derived from demo metrics) */}
-        <div
-          id="umbrella-suggestion-card"
-          className={`rounded-xl p-4 border transition-colors ${
-            demoUmbrella.status === "needed"
-              ? "bg-rose-50/80 border-rose-200 text-rose-950"
-              : demoUmbrella.status === "handy"
-              ? "bg-amber-50/80 border-amber-200 text-amber-950"
-              : "bg-emerald-50/80 border-emerald-200 text-emerald-950"
-          }`}
-        >
-          <div className="flex items-start gap-3">
-            <div
-              className={`p-2.5 rounded-xl shrink-0 ${
-                demoUmbrella.status === "needed"
-                  ? "bg-rose-600 text-white"
-                  : demoUmbrella.status === "handy"
-                  ? "bg-amber-500 text-white"
-                  : "bg-emerald-600 text-white"
-              }`}
-            >
-              <Umbrella className="w-6 h-6" aria-hidden="true" />
-            </div>
-
-            <div className="flex-1">
-              <div className="flex items-center gap-2 flex-wrap">
-                <span className="text-[11px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md bg-white/90 border border-current">
-                  Demo Umbrella Guide
-                </span>
-                <span className="text-xs font-semibold">
-                  {demoUmbrella.badgeText}
-                </span>
-              </div>
-
-              <p className="text-base sm:text-lg font-bold mt-1 leading-snug">
-                {demoUmbrella.recommendation}
-              </p>
-              <p className="text-[11px] opacity-80 mt-0.5">
-                Note: Derived strictly from fictional demo chance of rain ({demoMetrics.rainChancePercent}%), not from the official 2-hour weather forecast.
-              </p>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Button to check Next 12 Hours */}
-      <div className="pt-1">
-        <button
-          id="btn-goto-hourly-forecast"
-          type="button"
-          onClick={onNavigateToHourly}
-          className="w-full min-h-[52px] bg-sky-800 hover:bg-sky-900 text-white font-bold text-base px-5 py-3 rounded-xl flex items-center justify-between transition-colors shadow-xs cursor-pointer"
-        >
-          <span className="flex items-center gap-2">
-            <Clock className="w-5 h-5 text-sky-200" aria-hidden="true" />
-            <span>Check Next 12 Hours (Demo Projection)</span>
-          </span>
-          <ArrowRight className="w-5 h-5 text-sky-200 shrink-0" aria-hidden="true" />
-        </button>
-      </div>
     </div>
   );
 };

@@ -1,9 +1,8 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { AppHeader } from "./components/AppHeader";
-import { DisclaimerBanner } from "./components/DisclaimerBanner";
+import { SourceAttributionBanner } from "./components/SourceAttributionBanner";
 import { Navigation, ScreenId } from "./components/Navigation";
 import { TodayScreen, ForecastState } from "./components/TodayScreen";
-import { HourlyScreen } from "./components/HourlyScreen";
 import { LocationsScreen } from "./components/LocationsScreen";
 import { FooterAttribution } from "./components/FooterAttribution";
 
@@ -34,7 +33,7 @@ export default function App() {
   const [selectedAreaName, setSelectedAreaName] = useState<string>("City");
   const [activeScreen, setActiveScreen] = useState<ScreenId>("today");
 
-  // Explicit distinct states: loading, empty, not_found, timeout, unreachable, refused, invalid_response, success
+  // Distinct states: loading, empty, not_found, timeout, unreachable, refused, invalid_response, success
   const [forecastState, setForecastState] = useState<ForecastState>("loading");
   const [statusSentence, setStatusSentence] = useState<string>(
     "Getting the latest two-hour forecast…"
@@ -53,13 +52,12 @@ export default function App() {
   } | null>(null);
   const [retrievedAt, setRetrievedAt] = useState<string | null>(null);
 
-  // Fetch all areas once on mount from our serverless function (/api/weather)
+  // Fetch all areas on mount from our serverless function (/api/weather)
   const fetchWeather = useCallback(async () => {
     setForecastState("loading");
     setStatusSentence("Getting the latest two-hour forecast…");
 
     try {
-      // 1. Frontend calls /api/weather
       const response = await fetch("/api/weather", {
         headers: { Accept: "application/json" },
       });
@@ -157,8 +155,8 @@ export default function App() {
         onOpenLocations={() => setActiveScreen("locations")}
       />
 
-      {/* Sourcing Notice distinguishing live forecast from demo metrics */}
-      <DisclaimerBanner />
+      {/* Official Source Attribution Banner */}
+      <SourceAttributionBanner />
 
       {/* Main Content Area */}
       <main className="flex-1 w-full max-w-md mx-auto px-4 pt-4 pb-24">
@@ -167,7 +165,6 @@ export default function App() {
             selectedAreaName={selectedAreaName}
             allAreas={areas}
             onSelectArea={handleSelectArea}
-            onNavigateToHourly={() => setActiveScreen("hourly")}
             forecastState={forecastState}
             statusSentence={statusSentence}
             isLoading={forecastState === "loading"}
@@ -179,14 +176,6 @@ export default function App() {
             validPeriod={validPeriod}
             sourceTimestamps={sourceTimestamps}
             onRetry={fetchWeather}
-          />
-        )}
-
-        {activeScreen === "hourly" && (
-          <HourlyScreen
-            selectedAreaName={selectedAreaName}
-            allAreas={areas}
-            onSelectArea={handleSelectArea}
           />
         )}
 
@@ -206,7 +195,7 @@ export default function App() {
         <FooterAttribution retrievedAt={retrievedAt} />
       </main>
 
-      {/* Persistent Bottom Tab Navigation for Mobile Comfort */}
+      {/* Persistent Bottom Tab Navigation */}
       <Navigation
         activeScreen={activeScreen}
         onNavigate={(screen) => setActiveScreen(screen)}

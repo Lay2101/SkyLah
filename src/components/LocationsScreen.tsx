@@ -2,18 +2,11 @@ import React, { useState } from "react";
 import {
   MapPin,
   ChevronRight,
-  Droplets,
-  Umbrella,
   Check,
   Search,
-  Layers,
   Clock,
 } from "lucide-react";
-import {
-  getDemoMetricsForArea,
-  deriveUmbrellaSuggestion,
-  formatSingaporeTime,
-} from "../data/weatherData";
+import { formatSingaporeTime } from "../data/weatherData";
 import { WeatherIcon } from "./WeatherIcon";
 
 interface LocationsScreenProps {
@@ -62,10 +55,10 @@ export const LocationsScreen: React.FC<LocationsScreenProps> = ({
         </div>
 
         <p className="text-xs sm:text-sm text-slate-600 mt-1">
-          Comparing real-time 2-hour forecasts from data.gov.sg across {allAreas.length} Singapore forecast areas. Tap any area to open its Today forecast.
+          Comparing 2-hour forecasts from data.gov.sg across {allAreas.length} Singapore areas. Tap any area to select it.
         </p>
 
-        {/* Search input for quick lookup among 47 areas */}
+        {/* Search input for quick lookup */}
         <div className="mt-3 relative">
           <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
           <input
@@ -76,11 +69,6 @@ export const LocationsScreen: React.FC<LocationsScreenProps> = ({
             placeholder="Search Singapore area (e.g. City, Bedok, Jurong)..."
             className="w-full pl-9 pr-4 py-2 text-sm bg-slate-50 border border-slate-300 rounded-xl focus:bg-white focus:border-sky-600 focus:outline-hidden focus:ring-2 focus:ring-sky-100"
           />
-        </div>
-
-        <div className="mt-2 text-[11px] text-amber-800 flex items-center gap-1">
-          <Layers className="w-3 h-3 text-amber-600" />
-          <span>Weather conditions are real-time from data.gov.sg; temperature & rain chance are demo metrics.</span>
         </div>
       </section>
 
@@ -113,15 +101,10 @@ export const LocationsScreen: React.FC<LocationsScreenProps> = ({
       <section
         id="neighbourhoods-comparison-list"
         aria-label="Singapore Forecast Areas"
-        className="space-y-2.5"
+        className="space-y-2"
       >
         {filteredAreas.map((area) => {
           const isSelected = area.name.toLowerCase() === selectedAreaName.toLowerCase();
-          const demoMetrics = getDemoMetricsForArea(area.name);
-          const umbrella = deriveUmbrellaSuggestion(
-            demoMetrics.rainChancePercent,
-            area.forecast
-          );
 
           return (
             <button
@@ -129,78 +112,38 @@ export const LocationsScreen: React.FC<LocationsScreenProps> = ({
               id={`area-card-${area.name.toLowerCase().replace(/\s+/g, "-")}`}
               type="button"
               onClick={() => onSelectAreaAndOpenToday(area.name)}
-              className={`w-full text-left rounded-2xl p-4 border transition-all cursor-pointer min-h-[88px] relative flex flex-col justify-between ${
+              className={`w-full text-left rounded-2xl p-4 border transition-all cursor-pointer flex items-center justify-between gap-3 ${
                 isSelected
                   ? "bg-sky-50/90 border-sky-600 ring-2 ring-sky-300 shadow-sm"
                   : "bg-white border-slate-200 hover:border-slate-300 shadow-xs hover:shadow-sm"
               }`}
             >
-              {/* Top Row: Name, Current Selection Indicator, Chevron */}
-              <div className="flex items-center justify-between gap-2">
-                <div className="flex items-center gap-2 min-w-0">
-                  <span className="text-base sm:text-lg font-bold text-slate-900 truncate">
-                    {area.name}
-                  </span>
-                  {isSelected && (
-                    <span className="inline-flex items-center gap-1 text-[11px] font-black uppercase tracking-wider bg-sky-700 text-white px-2 py-0.5 rounded-full">
-                      <Check className="w-3 h-3" />
-                      Selected
-                    </span>
-                  )}
+              {/* Left Side: Name and Selection status */}
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="p-2 bg-sky-50 rounded-xl shrink-0 border border-sky-100">
+                  <WeatherIcon condition={area.forecast} className="w-6 h-6" size={24} />
                 </div>
-
-                <div className="flex items-center gap-1 text-slate-400">
-                  <span className="text-xs font-semibold text-slate-500 hidden sm:inline">
-                    View
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2">
+                    <span className="text-base font-bold text-slate-900 truncate">
+                      {area.name}
+                    </span>
+                    {isSelected && (
+                      <span className="inline-flex items-center gap-1 text-[10px] font-black uppercase tracking-wider bg-sky-700 text-white px-2 py-0.5 rounded-full shrink-0">
+                        <Check className="w-3 h-3" />
+                        Selected
+                      </span>
+                    )}
+                  </div>
+                  <span className="text-xs font-semibold text-slate-600 block truncate mt-0.5">
+                    {area.forecast}
                   </span>
-                  <ChevronRight className="w-5 h-5 text-sky-700" aria-hidden="true" />
                 </div>
               </div>
 
-              {/* Middle Row: Real 2-Hour Forecast & Demo metrics */}
-              <div className="mt-2.5 pt-2.5 border-t border-slate-100 flex items-center justify-between gap-3 flex-wrap">
-                {/* Real Condition */}
-                <div className="flex items-center gap-2">
-                  <div className="p-1.5 bg-slate-100 rounded-lg shrink-0">
-                    <WeatherIcon condition={area.forecast} className="w-5 h-5" size={20} />
-                  </div>
-                  <div>
-                    <span className="text-xs font-bold text-slate-800 block">
-                      {area.forecast}
-                    </span>
-                    <span className="text-[10px] text-sky-700 font-semibold uppercase">
-                      Next 2 Hours
-                    </span>
-                  </div>
-                </div>
-
-                {/* Demo Rain Chance & Temp */}
-                <div className="flex items-center gap-3 text-xs">
-                  <div className="flex items-center gap-1 text-slate-600">
-                    <Droplets className="w-3.5 h-3.5 text-sky-600" />
-                    <span className="font-bold">{demoMetrics.rainChancePercent}%</span>
-                    <span className="text-[10px] text-slate-400">(demo)</span>
-                  </div>
-
-                  <div className="font-extrabold text-slate-900 text-sm">
-                    {demoMetrics.temperatureC}°C
-                    <span className="text-[10px] text-slate-400 font-normal"> (demo)</span>
-                  </div>
-                </div>
-
-                {/* Umbrella Recommendation Pill */}
-                <div
-                  className={`text-[11px] font-bold px-2.5 py-1 rounded-md flex items-center gap-1 shrink-0 ${
-                    umbrella.status === "needed"
-                      ? "bg-rose-100 text-rose-900"
-                      : umbrella.status === "handy"
-                      ? "bg-amber-100 text-amber-900"
-                      : "bg-emerald-100 text-emerald-900"
-                  }`}
-                >
-                  <Umbrella className="w-3 h-3" />
-                  <span>{umbrella.shortAction}</span>
-                </div>
+              {/* Right Side: View Chevron */}
+              <div className="flex items-center gap-1 text-slate-400 shrink-0">
+                <ChevronRight className="w-5 h-5 text-sky-700" aria-hidden="true" />
               </div>
             </button>
           );
