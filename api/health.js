@@ -1,28 +1,28 @@
 import {
-  isKeyConfigured,
+  getCredentialInfo,
   fetchTwoHourForecastUpstream,
   sendJson,
 } from "./_upstream.js";
 
 /**
  * Health check endpoint reporting:
- * - keyRequired: false
- * - keyConfigured: boolean
- * - upstreamAnswered: boolean
- * - upstreamStatus: number | null
+ * - keyConfigured: boolean (whether credential is set and valid)
+ * - upstreamAnswered: boolean (whether the upstream server replied)
+ * - upstreamStatus: number | null (HTTP status code returned by upstream)
+ *
+ * Never prints or logs the credential or any part of it.
  */
 export default async function handler(req, res) {
-  // Do not cache health responses
   res.setHeader("Cache-Control", "no-store, max-age=0");
 
-  const upstreamResult = await fetchTwoHourForecastUpstream();
+  const credential = getCredentialInfo();
+  const upstreamResult = await fetchTwoHourForecastUpstream(credential.value);
 
-  const body = {
-    keyRequired: false,
-    keyConfigured: isKeyConfigured(),
+  const payload = {
+    keyConfigured: credential.isConfigured,
     upstreamAnswered: upstreamResult.answered,
     upstreamStatus: upstreamResult.status,
   };
 
-  return sendJson(res, 200, body);
+  return sendJson(res, 200, payload);
 }

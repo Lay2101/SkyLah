@@ -2,6 +2,7 @@ import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react';
 import path from 'path';
 import {defineConfig, Plugin} from 'vite';
+import skylahHandler from './api/skylahweatherforecasting.js';
 import weatherHandler from './api/weather.js';
 import healthHandler from './api/health.js';
 
@@ -11,9 +12,9 @@ function apiDevServerPlugin(): Plugin {
     configureServer(server) {
       server.middlewares.use(async (req, res, next) => {
         const url = req.url ? req.url.split('?')[0] : '';
-        if (url === '/api/weather') {
+        if (url === '/api/skylahweatherforecasting' || url === '/api/weather') {
           try {
-            await weatherHandler(req, res);
+            await skylahHandler(req, res);
           } catch (err) {
             next(err);
           }

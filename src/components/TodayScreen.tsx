@@ -19,11 +19,20 @@ import {
 } from "../data/weatherData";
 import { WeatherIcon } from "./WeatherIcon";
 
+export type ForecastState =
+  | "loading"
+  | "success"
+  | "empty"
+  | "refused"
+  | "unreachable";
+
 interface TodayScreenProps {
   selectedAreaName: string;
   allAreas: Array<{ name: string; forecast: string }>;
   onSelectArea: (areaName: string) => void;
   onNavigateToHourly: () => void;
+  forecastState?: ForecastState;
+  statusSentence?: string;
   isLoading: boolean;
   errorMessage: string | null;
   validPeriod: { start: string | null; end: string | null; text: string | null } | null;
@@ -36,6 +45,8 @@ export const TodayScreen: React.FC<TodayScreenProps> = ({
   allAreas,
   onSelectArea,
   onNavigateToHourly,
+  forecastState = "loading",
+  statusSentence,
   isLoading,
   errorMessage,
   validPeriod,
@@ -181,10 +192,10 @@ export const TodayScreen: React.FC<TodayScreenProps> = ({
           </div>
         )}
 
-        {/* State 1: Loading */}
-        {isLoading && (
+        {/* State 1: Loading (distinct sentence, not a bare spinner) */}
+        {forecastState === "loading" && (
           <div
-            id="weather-loading-state"
+            id="weather-state-loading"
             className="py-10 text-center space-y-3 bg-slate-50 rounded-xl border border-slate-200"
           >
             <div className="flex justify-center">
@@ -196,23 +207,23 @@ export const TodayScreen: React.FC<TodayScreenProps> = ({
           </div>
         )}
 
-        {/* State 2: Error (never substitute fictional data) */}
-        {!isLoading && errorMessage && (
+        {/* State 2: Upstream Refused (Case 3) */}
+        {forecastState === "refused" && (
           <div
-            id="weather-error-state"
-            className="py-8 px-4 text-center space-y-3 bg-rose-50 rounded-xl border border-rose-200 text-rose-950"
+            id="weather-state-refused"
+            className="py-8 px-4 text-center space-y-3 bg-amber-50 rounded-xl border border-amber-300 text-amber-950"
           >
             <div className="flex justify-center">
-              <AlertTriangle className="w-8 h-8 text-rose-600" />
+              <AlertTriangle className="w-8 h-8 text-amber-700" />
             </div>
             <p className="text-base font-bold leading-relaxed max-w-sm mx-auto">
-              {errorMessage}
+              The weather service declined this request. Please try again later.
             </p>
             {onRetry && (
               <button
                 type="button"
                 onClick={onRetry}
-                className="mt-2 min-h-[44px] px-4 py-2 bg-rose-700 hover:bg-rose-800 text-white text-sm font-semibold rounded-lg transition-colors inline-flex items-center gap-2"
+                className="mt-2 min-h-[44px] px-4 py-2 bg-amber-800 hover:bg-amber-900 text-white text-sm font-semibold rounded-lg transition-colors inline-flex items-center gap-2 cursor-pointer"
               >
                 <RefreshCw className="w-4 h-4" />
                 Retry
@@ -221,10 +232,35 @@ export const TodayScreen: React.FC<TodayScreenProps> = ({
           </div>
         )}
 
-        {/* State 3: Empty forecast */}
-        {!isLoading && !errorMessage && !realForecastText && (
+        {/* State 3: Upstream Unreachable (Case 4) */}
+        {forecastState === "unreachable" && (
           <div
-            id="weather-empty-state"
+            id="weather-state-unreachable"
+            className="py-8 px-4 text-center space-y-3 bg-rose-50 rounded-xl border border-rose-200 text-rose-950"
+          >
+            <div className="flex justify-center">
+              <AlertTriangle className="w-8 h-8 text-rose-600" />
+            </div>
+            <p className="text-base font-bold leading-relaxed max-w-sm mx-auto">
+              We couldn’t reach the weather service. Please try again shortly.
+            </p>
+            {onRetry && (
+              <button
+                type="button"
+                onClick={onRetry}
+                className="mt-2 min-h-[44px] px-4 py-2 bg-rose-700 hover:bg-rose-800 text-white text-sm font-semibold rounded-lg transition-colors inline-flex items-center gap-2 cursor-pointer"
+              >
+                <RefreshCw className="w-4 h-4" />
+                Retry
+              </button>
+            )}
+          </div>
+        )}
+
+        {/* State 4: Data Empty (Case 2) */}
+        {(forecastState === "empty" || (forecastState === "success" && !realForecastText)) && (
+          <div
+            id="weather-state-empty"
             className="py-8 px-4 text-center space-y-2 bg-slate-50 rounded-xl border border-slate-200"
           >
             <HelpCircle className="w-8 h-8 text-slate-400 mx-auto" />
@@ -234,9 +270,12 @@ export const TodayScreen: React.FC<TodayScreenProps> = ({
           </div>
         )}
 
-        {/* State 4: Real Forecast Display */}
-        {!isLoading && !errorMessage && realForecastText && (
-          <div className="bg-sky-50/60 p-4 sm:p-5 rounded-xl border border-sky-200">
+        {/* State 5: Real Live Forecast Display */}
+        {forecastState === "success" && realForecastText && (
+          <div
+            id="weather-state-success"
+            className="bg-sky-50/60 p-4 sm:p-5 rounded-xl border border-sky-200"
+          >
             <div className="text-xs font-bold uppercase tracking-wider text-sky-800 mb-2">
               Official 2-Hour Weather Description
             </div>

@@ -1,32 +1,61 @@
 /**
  * Shared helper for calling Singapore data.gov.sg two-hour forecast API.
- * Supports unauthenticated access or optional DATA_GOV_SG_API_KEY.
- * Never prints or logs the credential.
+ * Safely manages credential presence, upstream timeout, and response serialization.
+ * Never prints or logs the credential in responses or console outputs.
  */
 
 const UPSTREAM_URL = "https://api-open.data.gov.sg/v2/real-time/api/two-hr-forecast";
 const REQUEST_TIMEOUT_MS = 8000;
 
-export function isKeyConfigured() {
-  const key = process.env.DATA_GOV_SG_API_KEY;
-  return typeof key === "string" && key.trim().length > 0;
-}
+const POSSIBLE_ENV_VARS = [
+  "DATA_GOV_SG_API_KEY",
+  "VARIABLE_NAME",
+  "SKYLAH_WEATHER_API_KEY",
+  "SKYLAH_API_KEY",
+  "API_KEY",
+];
 
-export function getSafeApiKey() {
-  if (isKeyConfigured()) {
-    return process.env.DATA_GOV_SG_API_KEY.trim();
+export function getCredentialInfo() {
+  for (const name of POSSIBLE_ENV_VARS) {
+    if (process.env[name] !== undefined) {
+      const rawVal = process.env[name];
+      const isValid =
+        typeof rawVal === "string" &&
+        rawVal.trim().length > 0 &&
+        rawVal.trim().toLowerCase() !== "undefined" &&
+        rawVal.trim().toLowerCase() !== "null";
+      return {
+        varName: name,
+        isConfigured: isValid,
+        value: isValid ? rawVal.trim() : null,
+      };
+    }
   }
-  return null;
+
+  // Default variable name expected in deployment context
+  return {
+    varName: "DATA_GOV_SG_API_KEY",
+    isConfigured: false,
+    value: null,
+  };
 }
 
-export async function fetchTwoHourForecastUpstream() {
+export function isKeyConfigured() {
+  return getCredentialInfo().isConfigured;
+}
+
+export async function fetchTwoHourForecastUpstream(apiKey = null) {
   const headers = {
     Accept: "application/json",
   };
 
-  const apiKey = getSafeApiKey();
-  if (apiKey) {
-    headers["x-api-key"] = apiKey;
+  // Only attach key if non-empty string and not literal "undefined"
+  if (
+    typeof apiKey === "string" &&
+    apiKey.trim().length > 0 &&
+    apiKey.trim().toLowerCase() !== "undefined"
+  ) {
+    headers["x-api-key"] = apiKey.trim();
   }
 
   const controller = new AbortController();
@@ -60,10 +89,23 @@ export async function fetchTwoHourForecastUpstream() {
 }
 
 export function sendJson(res, statusCode, data) {
-  if (typeof res.status === "function" && typeof res.json === "function") {
-    return res.status(statusCode).json(data);
+  if (typeof res.status === "function") {
+    res.status(statusCode);
+    if (typeof res.json === "function") {
+      return res.json(data);
+    }
+    if (typeof res.send === "function") {
+      return res.send(JSON.stringify(data));
+    }
   }
   res.statusCode = statusCode;
-  res.setHeader("Content-Type", "application/json");
-  res.end(JSON.stringify(data));
+  if (typeof res.setHeader === "function") {
+    res.setHeader("Content-Type", "application/json");
+  }
+  if (typeof res.json === "function") {
+    return res.json(data);
+  }
+  if (typeof res.end === "function") {
+    return res.end(JSON.stringify(data));
+  }
 }

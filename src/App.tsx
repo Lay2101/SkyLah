@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from "react";
 import { AppHeader } from "./components/AppHeader";
 import { DisclaimerBanner } from "./components/DisclaimerBanner";
 import { Navigation, ScreenId } from "./components/Navigation";
-import { TodayScreen } from "./components/TodayScreen";
+import { TodayScreen, ForecastState } from "./components/TodayScreen";
 import { HourlyScreen } from "./components/HourlyScreen";
 import { LocationsScreen } from "./components/LocationsScreen";
 import { FooterAttribution } from "./components/FooterAttribution";
@@ -28,9 +28,14 @@ export interface WeatherDataResponse {
 }
 
 export default function App() {
-  // Default to 'City' if available, otherwise initialized once areas arrive
   const [selectedAreaName, setSelectedAreaName] = useState<string>("City");
   const [activeScreen, setActiveScreen] = useState<ScreenId>("today");
+
+  // Four explicit states: loading, empty, refused, unreachable (or success with real data)
+  const [forecastState, setForecastState] = useState<ForecastState>("loading");
+  const [statusSentence, setStatusSentence] = useState<string>(
+    "Getting the latest two-hour forecast…"
+  );
 
   // Real weather API state
   const [areas, setAreas] = useState<WeatherArea[]>([]);
@@ -45,49 +50,41 @@ export default function App() {
   } | null>(null);
   const [retrievedAt, setRetrievedAt] = useState<string | null>(null);
 
-  const [isLoading, setIsLoading] = useState<boolean>(true);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
-
-  // Fetch all areas together once on mount so changing selection never triggers upstream request
+  // Fetch all areas once on mount from our serverless function
   const fetchWeather = useCallback(async () => {
-    setIsLoading(true);
-    setErrorMessage(null);
+    setForecastState("loading");
+    setStatusSentence("Getting the latest two-hour forecast…");
 
     try {
-      const response = await fetch("/api/weather");
-
-      if (response.status === 429) {
-        setErrorMessage(
-          "The weather service is receiving too many requests. Please wait a moment and try again."
-        );
-        setIsLoading(false);
-        return;
-      }
+      // Calls our dedicated serverless function
+      const response = await fetch("/api/skylahweatherforecasting");
 
       if (!response.ok) {
-        // Safe upstream error handling
-        if (response.status === 503 || response.status === 504) {
-          setErrorMessage(
-            "We couldn’t reach the weather service. Please try again shortly."
-          );
+        if (response.status === 503 || response.status === 504 || response.status === 502) {
+          // Case 4: Upstream is unreachable
+          setForecastState("unreachable");
+          setStatusSentence("We couldn’t reach the weather service. Please try again shortly.");
         } else {
-          setErrorMessage(
-            "The weather service declined this request. Please try again later."
-          );
+          // Case 3: Upstream refused (401, 403, 429, etc.)
+          setForecastState("refused");
+          setStatusSentence("The weather service declined this request. Please try again later.");
         }
-        setIsLoading(false);
         return;
       }
 
       const data: WeatherDataResponse = await response.json();
 
       if (data.empty || !Array.isArray(data.areas) || data.areas.length === 0) {
-        setErrorMessage("No forecast is available for this area right now.");
+        // Case 2: Data is empty
+        setForecastState("empty");
+        setStatusSentence("No forecast is available for this area right now.");
         setAreas([]);
-        setIsLoading(false);
         return;
       }
 
+      // Success with live real forecast data
+      setForecastState("success");
+      setStatusSentence("");
       setAreas(data.areas);
       setSourceTimestamps(data.sourceTimestamps || null);
       setValidPeriod(data.validPeriod || null);
@@ -105,12 +102,9 @@ export default function App() {
         return exists ? current : data.areas[0].name;
       });
     } catch (_err) {
-      // Network unreachable or client abort
-      setErrorMessage(
-        "We couldn’t reach the weather service. Please try again shortly."
-      );
-    } finally {
-      setIsLoading(false);
+      // Case 4: Network error / unreachable
+      setForecastState("unreachable");
+      setStatusSentence("We couldn’t reach the weather service. Please try again shortly.");
     }
   }, []);
 
@@ -119,7 +113,6 @@ export default function App() {
   }, [fetchWeather]);
 
   const handleSelectArea = (areaName: string) => {
-    // Changing selection strictly uses already fetched areas without upstream requests
     setSelectedAreaName(areaName);
   };
 
@@ -147,8 +140,14 @@ export default function App() {
             allAreas={areas}
             onSelectArea={handleSelectArea}
             onNavigateToHourly={() => setActiveScreen("hourly")}
-            isLoading={isLoading}
-            errorMessage={errorMessage}
+            forecastState={forecastState}
+            statusSentence={statusSentence}
+            isLoading={forecastState === "loading"}
+            errorMessage={
+              forecastState === "refused" || forecastState === "unreachable"
+                ? statusSentence
+                : null
+            }
             validPeriod={validPeriod}
             sourceTimestamps={sourceTimestamps}
             onRetry={fetchWeather}
@@ -168,7 +167,7 @@ export default function App() {
             selectedAreaName={selectedAreaName}
             allAreas={areas}
             onSelectAreaAndOpenToday={handleSelectAreaAndOpenToday}
-            isLoading={isLoading}
+            isLoading={forecastState === "loading"}
             validPeriod={validPeriod}
           />
         )}
