@@ -1,27 +1,42 @@
-import React from "react";
+import React, { useState } from "react";
 import {
   MapPin,
   ChevronRight,
   Droplets,
   Umbrella,
   Check,
+  Search,
+  Layers,
+  Clock,
 } from "lucide-react";
 import {
-  NeighbourhoodWeather,
-  NEIGHBOURHOODS,
+  getDemoMetricsForArea,
   deriveUmbrellaSuggestion,
+  formatSingaporeTime,
 } from "../data/weatherData";
 import { WeatherIcon } from "./WeatherIcon";
 
 interface LocationsScreenProps {
-  selectedNeighbourhoodId: string;
-  onSelectNeighbourhoodAndOpenToday: (neighbourhoodId: string) => void;
+  selectedAreaName: string;
+  allAreas: Array<{ name: string; forecast: string }>;
+  onSelectAreaAndOpenToday: (areaName: string) => void;
+  isLoading: boolean;
+  validPeriod: { start: string | null; end: string | null; text: string | null } | null;
 }
 
 export const LocationsScreen: React.FC<LocationsScreenProps> = ({
-  selectedNeighbourhoodId,
-  onSelectNeighbourhoodAndOpenToday,
+  selectedAreaName,
+  allAreas,
+  onSelectAreaAndOpenToday,
+  isLoading,
+  validPeriod,
 }) => {
+  const [searchQuery, setSearchQuery] = useState("");
+
+  const filteredAreas = allAreas.filter((item) =>
+    item.name.toLowerCase().includes(searchQuery.toLowerCase().trim())
+  );
+
   return (
     <div className="space-y-4 pb-6">
       {/* Screen Header */}
@@ -29,37 +44,72 @@ export const LocationsScreen: React.FC<LocationsScreenProps> = ({
         id="locations-header-card"
         className="bg-white rounded-2xl p-4 border border-slate-200 shadow-xs"
       >
-        <h1 className="text-xl sm:text-2xl font-bold text-slate-900 flex items-center gap-2">
-          <MapPin className="w-6 h-6 text-sky-700" aria-hidden="true" />
-          <span>My Locations Comparison</span>
-        </h1>
-        <p className="text-xs sm:text-sm text-slate-500 mt-1">
-          Compare current weather and rain chances across all 6 fictional Singapore neighbourhoods. Tap any location to view its detailed Today screen.
+        <div className="flex items-center justify-between flex-wrap gap-2">
+          <h1 className="text-xl sm:text-2xl font-bold text-slate-900 flex items-center gap-2">
+            <MapPin className="w-6 h-6 text-sky-700" aria-hidden="true" />
+            <span>Singapore Areas Comparison</span>
+          </h1>
+          {validPeriod && (
+            <span className="text-xs font-semibold text-sky-800 bg-sky-50 px-2.5 py-1 rounded-full border border-sky-200 flex items-center gap-1">
+              <Clock className="w-3.5 h-3.5" />
+              Valid: {validPeriod.text || `${formatSingaporeTime(validPeriod.start)} - ${formatSingaporeTime(validPeriod.end)}`}
+            </span>
+          )}
+        </div>
+
+        <p className="text-xs sm:text-sm text-slate-600 mt-1">
+          Comparing real-time 2-hour forecasts from data.gov.sg across {allAreas.length} Singapore forecast areas. Tap any area to open its Today forecast.
         </p>
+
+        {/* Search input for quick lookup among 47 areas */}
+        <div className="mt-3 relative">
+          <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+          <input
+            id="locations-search-input"
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Search Singapore area (e.g. City, Bedok, Jurong)..."
+            className="w-full pl-9 pr-4 py-2 text-sm bg-slate-50 border border-slate-300 rounded-xl focus:bg-white focus:border-sky-600 focus:outline-hidden focus:ring-2 focus:ring-sky-100"
+          />
+        </div>
+
+        <div className="mt-2 text-[11px] text-amber-800 flex items-center gap-1">
+          <Layers className="w-3 h-3 text-amber-600" />
+          <span>Weather conditions are real-time from data.gov.sg; temperature & rain chance are demo metrics.</span>
+        </div>
       </section>
 
-      {/* Grid / List of Neighbourhoods */}
+      {/* Loading state */}
+      {isLoading && allAreas.length === 0 && (
+        <div className="py-12 text-center bg-white rounded-2xl border border-slate-200 text-slate-600">
+          <p className="text-base font-semibold">Loading Singapore forecast areas…</p>
+        </div>
+      )}
+
+      {/* Grid / List of Areas */}
       <section
         id="neighbourhoods-comparison-list"
-        aria-label="Neighbourhood Weather Comparison"
-        className="space-y-3"
+        aria-label="Singapore Forecast Areas"
+        className="space-y-2.5"
       >
-        {NEIGHBOURHOODS.map((neighbourhood) => {
-          const isSelected = neighbourhood.id === selectedNeighbourhoodId;
+        {filteredAreas.map((area) => {
+          const isSelected = area.name.toLowerCase() === selectedAreaName.toLowerCase();
+          const demoMetrics = getDemoMetricsForArea(area.name);
           const umbrella = deriveUmbrellaSuggestion(
-            neighbourhood.current.rainChancePercent,
-            neighbourhood.current.condition
+            demoMetrics.rainChancePercent,
+            area.forecast
           );
 
           return (
             <button
-              key={neighbourhood.id}
-              id={`neighbourhood-card-${neighbourhood.id}`}
+              key={area.name}
+              id={`area-card-${area.name.toLowerCase().replace(/\s+/g, "-")}`}
               type="button"
-              onClick={() => onSelectNeighbourhoodAndOpenToday(neighbourhood.id)}
-              className={`w-full text-left rounded-2xl p-4 border transition-all cursor-pointer min-h-[96px] relative flex flex-col justify-between ${
+              onClick={() => onSelectAreaAndOpenToday(area.name)}
+              className={`w-full text-left rounded-2xl p-4 border transition-all cursor-pointer min-h-[88px] relative flex flex-col justify-between ${
                 isSelected
-                  ? "bg-sky-50/80 border-sky-600 ring-2 ring-sky-300 shadow-sm"
+                  ? "bg-sky-50/90 border-sky-600 ring-2 ring-sky-300 shadow-sm"
                   : "bg-white border-slate-200 hover:border-slate-300 shadow-xs hover:shadow-sm"
               }`}
             >
@@ -67,102 +117,78 @@ export const LocationsScreen: React.FC<LocationsScreenProps> = ({
               <div className="flex items-center justify-between gap-2">
                 <div className="flex items-center gap-2 min-w-0">
                   <span className="text-base sm:text-lg font-bold text-slate-900 truncate">
-                    {neighbourhood.name}
+                    {area.name}
                   </span>
                   {isSelected && (
-                    <span className="text-[11px] font-bold bg-sky-700 text-white px-2 py-0.5 rounded-full shrink-0 flex items-center gap-1">
+                    <span className="inline-flex items-center gap-1 text-[11px] font-black uppercase tracking-wider bg-sky-700 text-white px-2 py-0.5 rounded-full">
                       <Check className="w-3 h-3" />
-                      Active
+                      Selected
                     </span>
                   )}
                 </div>
 
-                <div className="flex items-center gap-1 text-xs text-sky-800 font-semibold shrink-0">
-                  <span>View Today</span>
-                  <ChevronRight className="w-4 h-4 text-sky-700" aria-hidden="true" />
-                </div>
-              </div>
-
-              <div className="text-xs text-slate-500 -mt-1">
-                {neighbourhood.tagline}
-              </div>
-
-              {/* Middle Row: Weather condition, Temp, Rain chance */}
-              <div className="grid grid-cols-3 gap-2 mt-3 pt-3 border-t border-slate-100 items-center">
-                {/* Condition */}
-                <div className="flex items-center gap-2">
-                  <div className="p-1.5 bg-slate-50 rounded-lg shrink-0 border border-slate-100">
-                    <WeatherIcon
-                      condition={neighbourhood.current.condition}
-                      className="w-5 h-5"
-                      size={20}
-                    />
-                  </div>
-                  <div className="text-xs font-semibold text-slate-800 leading-tight">
-                    {neighbourhood.current.condition}
-                  </div>
-                </div>
-
-                {/* Temperature */}
-                <div className="text-center">
-                  <span className="text-xl sm:text-2xl font-extrabold text-slate-900">
-                    {neighbourhood.current.temperatureC}°C
+                <div className="flex items-center gap-1 text-slate-400">
+                  <span className="text-xs font-semibold text-slate-500 hidden sm:inline">
+                    View
                   </span>
+                  <ChevronRight className="w-5 h-5 text-sky-700" aria-hidden="true" />
                 </div>
+              </div>
 
-                {/* Rain Chance */}
-                <div className="text-right">
-                  <div className="flex items-center justify-end gap-1">
-                    <Droplets
-                      className={`w-3.5 h-3.5 ${
-                        neighbourhood.current.rainChancePercent >= 60
-                          ? "text-blue-600"
-                          : neighbourhood.current.rainChancePercent >= 30
-                          ? "text-sky-500"
-                          : "text-emerald-500"
-                      }`}
-                      aria-hidden="true"
-                    />
-                    <span
-                      className={`text-base sm:text-lg font-extrabold ${
-                        neighbourhood.current.rainChancePercent >= 60
-                          ? "text-blue-900"
-                          : neighbourhood.current.rainChancePercent >= 30
-                          ? "text-slate-800"
-                          : "text-emerald-800"
-                      }`}
-                    >
-                      {neighbourhood.current.rainChancePercent}%
+              {/* Middle Row: Real 2-Hour Forecast & Demo metrics */}
+              <div className="mt-2.5 pt-2.5 border-t border-slate-100 flex items-center justify-between gap-3 flex-wrap">
+                {/* Real Condition */}
+                <div className="flex items-center gap-2">
+                  <div className="p-1.5 bg-slate-100 rounded-lg shrink-0">
+                    <WeatherIcon condition={area.forecast} className="w-5 h-5" size={20} />
+                  </div>
+                  <div>
+                    <span className="text-xs font-bold text-slate-800 block">
+                      {area.forecast}
+                    </span>
+                    <span className="text-[10px] text-sky-700 font-semibold uppercase">
+                      Next 2 Hours
                     </span>
                   </div>
-                  <div className="text-[10px] text-slate-500 font-medium uppercase tracking-tight">
-                    rain chance
+                </div>
+
+                {/* Demo Rain Chance & Temp */}
+                <div className="flex items-center gap-3 text-xs">
+                  <div className="flex items-center gap-1 text-slate-600">
+                    <Droplets className="w-3.5 h-3.5 text-sky-600" />
+                    <span className="font-bold">{demoMetrics.rainChancePercent}%</span>
+                    <span className="text-[10px] text-slate-400">(demo)</span>
+                  </div>
+
+                  <div className="font-extrabold text-slate-900 text-sm">
+                    {demoMetrics.temperatureC}°C
+                    <span className="text-[10px] text-slate-400 font-normal"> (demo)</span>
                   </div>
                 </div>
-              </div>
 
-              {/* Bottom Row: Umbrella pill */}
-              <div className="mt-2.5 flex items-center justify-between">
-                <span
-                  className={`inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-1 rounded-md ${
+                {/* Umbrella Recommendation Pill */}
+                <div
+                  className={`text-[11px] font-bold px-2.5 py-1 rounded-md flex items-center gap-1 shrink-0 ${
                     umbrella.status === "needed"
-                      ? "bg-rose-100 text-rose-900 border border-rose-200"
+                      ? "bg-rose-100 text-rose-900"
                       : umbrella.status === "handy"
-                      ? "bg-amber-100 text-amber-900 border border-amber-200"
-                      : "bg-emerald-100 text-emerald-900 border border-emerald-200"
+                      ? "bg-amber-100 text-amber-900"
+                      : "bg-emerald-100 text-emerald-900"
                   }`}
                 >
-                  <Umbrella className="w-3.5 h-3.5" aria-hidden="true" />
+                  <Umbrella className="w-3 h-3" />
                   <span>{umbrella.shortAction}</span>
-                </span>
-
-                <span className="text-[11px] text-slate-400 font-medium">
-                  Tap card to switch
-                </span>
+                </div>
               </div>
             </button>
           );
         })}
+
+        {filteredAreas.length === 0 && (
+          <div className="py-8 text-center bg-slate-50 rounded-xl border border-slate-200 text-slate-500 text-sm">
+            No Singapore forecast areas matching &ldquo;{searchQuery}&rdquo;.
+          </div>
+        )}
       </section>
     </div>
   );

@@ -1,14 +1,13 @@
 import React from "react";
 import { CloudSun, MapPin } from "lucide-react";
-import { NeighbourhoodWeather } from "../data/weatherData";
 
 interface AppHeaderProps {
-  selectedNeighbourhood: NeighbourhoodWeather;
+  selectedAreaName: string;
   onOpenLocations: () => void;
 }
 
 export const AppHeader: React.FC<AppHeaderProps> = ({
-  selectedNeighbourhood,
+  selectedAreaName,
   onOpenLocations,
 }) => {
   return (
@@ -38,11 +37,11 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
           id="header-location-badge-button"
           type="button"
           onClick={onOpenLocations}
-          className="min-h-[44px] flex items-center gap-1.5 bg-sky-800/90 hover:bg-sky-700 text-white text-xs font-semibold px-3 py-1.5 rounded-xl border border-sky-700/80 transition-colors shadow-xs"
-          title="Switch neighbourhood"
+          className="min-h-[44px] flex items-center gap-1.5 bg-sky-800/90 hover:bg-sky-700 text-white text-xs font-semibold px-3 py-1.5 rounded-xl border border-sky-700/80 transition-colors shadow-xs cursor-pointer"
+          title="Switch Singapore area"
         >
           <MapPin className="w-3.5 h-3.5 text-amber-300 shrink-0" aria-hidden="true" />
-          <span className="max-w-[100px] truncate">{selectedNeighbourhood.name}</span>
+          <span className="max-w-[120px] truncate">{selectedAreaName}</span>
         </button>
       </div>
     </header>

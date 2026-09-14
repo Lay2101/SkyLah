@@ -230,6 +230,116 @@ export function deriveLowestRainHour(hourlyRows: HourlyForecast[]): HourlyForeca
 }
 
 /**
+ * Deterministically generates demo metrics (temperature, humidity, rain chance)
+ * for any real Singapore area so demo features remain coherent while clearly labelled.
+ */
+export function getDemoMetricsForArea(areaName: string): {
+  temperatureC: number;
+  rainChancePercent: number;
+  humidityPercent: number;
+} {
+  let hash = 0;
+  for (let i = 0; i < areaName.length; i++) {
+    hash = (hash << 5) - hash + areaName.charCodeAt(i);
+    hash |= 0;
+  }
+  const abs = Math.abs(hash);
+  const temp = 29 + (abs % 4); // 29°C - 32°C
+  const rain = 15 + ((abs >> 3) % 7) * 10; // 15% - 75%
+  const humidity = 70 + ((abs >> 2) % 22); // 70% - 91%
+  return {
+    temperatureC: temp,
+    rainChancePercent: rain,
+    humidityPercent: humidity,
+  };
+}
+
+/**
+ * Generates 12 consecutive hours of demo forecast for any selected area.
+ */
+export function getHourlyForecastsForArea(areaName: string): HourlyForecast[] {
+  const existing = HOURLY_FORECASTS.filter(
+    (r) => r.neighbourhoodId.toLowerCase() === areaName.toLowerCase().replace(/\s+/g, "-")
+  );
+  if (existing.length === 12) return existing;
+
+  const demo = getDemoMetricsForArea(areaName);
+  const hours = [
+    "07:00 SGT", "08:00 SGT", "09:00 SGT", "10:00 SGT", "11:00 SGT", "12:00 SGT",
+    "13:00 SGT", "14:00 SGT", "15:00 SGT", "16:00 SGT", "17:00 SGT", "18:00 SGT"
+  ];
+  const conditions: Array<HourlyForecast["condition"]> = [
+    "Partly Cloudy", "Sunny", "Sunny", "Partly Cloudy", "Cloudy", "Passing Showers",
+    "Passing Showers", "Partly Cloudy", "Sunny", "Cloudy", "Passing Showers", "Partly Cloudy"
+  ];
+
+  return hours.map((hour, idx) => {
+    const rainOffset = ((idx * 7) % 30) - 15;
+    const rain = Math.min(85, Math.max(10, demo.rainChancePercent + rainOffset));
+    return {
+      id: `${areaName.toLowerCase().replace(/\s+/g, "-")}-${idx}`,
+      neighbourhoodId: areaName,
+      hour,
+      condition: conditions[idx % conditions.length],
+      temperatureC: demo.temperatureC + (idx >= 4 && idx <= 8 ? 2 : 0),
+      rainChancePercent: rain,
+    };
+  });
+}
+
+/**
+ * Helper to format ISO timestamp into Singapore Time (SGT, 12-hour am/pm).
+ */
+export function formatSingaporeTime(dateStr?: string | null): string {
+  if (!dateStr) return "N/A";
+  try {
+    const d = new Date(dateStr);
+    if (isNaN(d.getTime())) return dateStr;
+    return new Intl.DateTimeFormat("en-SG", {
+      hour: "numeric",
+      minute: "2-digit",
+      hour12: true,
+      timeZone: "Asia/Singapore",
+    }).format(d);
+  } catch {
+    return dateStr;
+  }
+}
+
+/**
+ * Helper to format access date into UK/Singapore long date (e.g. 14 September 2026).
+ */
+export function formatSingaporeDate(dateStr?: string | null): string {
+  if (!dateStr) return "N/A";
+  try {
+    const d = new Date(dateStr);
+    if (isNaN(d.getTime())) return dateStr;
+    return new Intl.DateTimeFormat("en-GB", {
+      day: "numeric",
+      month: "long",
+      year: "numeric",
+      timeZone: "Asia/Singapore",
+    }).format(d);
+  } catch {
+    return dateStr;
+  }
+}
+
+/**
+ * Evaluates whether the forecast has expired based on valid_period.end.
+ */
+export function isForecastExpired(validPeriodEnd?: string | null): boolean {
+  if (!validPeriodEnd) return false;
+  try {
+    const endTime = new Date(validPeriodEnd).getTime();
+    if (isNaN(endTime)) return false;
+    return Date.now() > endTime;
+  } catch {
+    return false;
+  }
+}
+
+/**
  * Helper to fetch a neighbourhood by ID with safe fallback.
  */
 export function getNeighbourhoodById(id: string): NeighbourhoodWeather {
@@ -243,3 +353,4 @@ export function getNeighbourhoodById(id: string): NeighbourhoodWeather {
 export function getHourlyForecastsForNeighbourhood(neighbourhoodId: string): HourlyForecast[] {
   return HOURLY_FORECASTS.filter((row) => row.neighbourhoodId === neighbourhoodId);
 }
+

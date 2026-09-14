@@ -1,11 +1,41 @@
 import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react';
 import path from 'path';
-import {defineConfig} from 'vite';
+import {defineConfig, Plugin} from 'vite';
+import weatherHandler from './api/weather.js';
+import healthHandler from './api/health.js';
+
+function apiDevServerPlugin(): Plugin {
+  return {
+    name: 'api-dev-server',
+    configureServer(server) {
+      server.middlewares.use(async (req, res, next) => {
+        const url = req.url ? req.url.split('?')[0] : '';
+        if (url === '/api/weather') {
+          try {
+            await weatherHandler(req, res);
+          } catch (err) {
+            next(err);
+          }
+          return;
+        }
+        if (url === '/api/health') {
+          try {
+            await healthHandler(req, res);
+          } catch (err) {
+            next(err);
+          }
+          return;
+        }
+        next();
+      });
+    },
+  };
+}
 
 export default defineConfig(() => {
   return {
-    plugins: [react(), tailwindcss()],
+    plugins: [react(), tailwindcss(), apiDevServerPlugin()],
     resolve: {
       alias: {
         '@': path.resolve(__dirname, '.'),

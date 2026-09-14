@@ -6,26 +6,27 @@ import {
   MapPin,
   CheckCircle2,
   Calendar,
+  Layers,
 } from "lucide-react";
 import {
-  NeighbourhoodWeather,
-  NEIGHBOURHOODS,
-  getHourlyForecastsForNeighbourhood,
+  getHourlyForecastsForArea,
   deriveLowestRainHour,
   FIXED_DEMO_DATE,
 } from "../data/weatherData";
 import { WeatherIcon } from "./WeatherIcon";
 
 interface HourlyScreenProps {
-  selectedNeighbourhood: NeighbourhoodWeather;
-  onSelectNeighbourhood: (neighbourhoodId: string) => void;
+  selectedAreaName: string;
+  allAreas: Array<{ name: string; forecast: string }>;
+  onSelectArea: (areaName: string) => void;
 }
 
 export const HourlyScreen: React.FC<HourlyScreenProps> = ({
-  selectedNeighbourhood,
-  onSelectNeighbourhood,
+  selectedAreaName,
+  allAreas,
+  onSelectArea,
 }) => {
-  const hourlyRows = getHourlyForecastsForNeighbourhood(selectedNeighbourhood.id);
+  const hourlyRows = getHourlyForecastsForArea(selectedAreaName);
   const bestHour = deriveLowestRainHour(hourlyRows);
 
   return (
@@ -42,7 +43,7 @@ export const HourlyScreen: React.FC<HourlyScreenProps> = ({
               <span>Forecast Location</span>
             </div>
             <h1 className="text-xl sm:text-2xl font-bold text-slate-900 mt-0.5">
-              {selectedNeighbourhood.name}
+              {selectedAreaName}
             </h1>
             <p className="text-xs text-slate-500 flex items-center gap-1 mt-0.5">
               <Calendar className="w-3.5 h-3.5" />
@@ -52,170 +53,162 @@ export const HourlyScreen: React.FC<HourlyScreenProps> = ({
 
           <div className="sm:w-64">
             <label htmlFor="hourly-neighbourhood-select" className="sr-only">
-              Switch neighbourhood
+              Switch area
             </label>
             <select
               id="hourly-neighbourhood-select"
-              value={selectedNeighbourhood.id}
-              onChange={(e) => onSelectNeighbourhood(e.target.value)}
-              className="w-full min-h-[44px] text-sm font-semibold text-slate-900 bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 focus:border-sky-600 focus:bg-white focus:outline-none"
+              value={selectedAreaName}
+              onChange={(e) => onSelectArea(e.target.value)}
+              className="w-full min-h-[44px] text-sm font-semibold text-slate-800 bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 focus:border-sky-600 focus:outline-hidden focus:ring-2 focus:ring-sky-100"
             >
-              {NEIGHBOURHOODS.map((item) => (
-                <option key={item.id} value={item.id}>
-                  {item.name} ({item.current.condition})
-                </option>
-              ))}
+              {allAreas.length === 0 ? (
+                <option value={selectedAreaName}>{selectedAreaName}</option>
+              ) : (
+                allAreas.map((area) => (
+                  <option key={area.name} value={area.name}>
+                    {area.name}
+                  </option>
+                ))
+              )}
             </select>
           </div>
         </div>
+
+        {/* Clear Notice: Fictional Demo Data */}
+        <div className="mt-3 pt-3 border-t border-slate-100 flex items-center gap-1.5 text-xs text-amber-900 bg-amber-50 px-3 py-2 rounded-lg border border-amber-200 font-medium">
+          <Layers className="w-4 h-4 text-amber-700 shrink-0" />
+          <span>
+            <strong>Demo — fictional data:</strong> The 2-hour weather API does not supply a 12-hour hourly forecast. The timeline below displays prototype simulation data.
+          </span>
+        </div>
       </section>
 
-      {/* Best Time to Head Out Recommendation Highlight Box */}
+      {/* Best Time to Head Out Recommendation Card */}
       {bestHour && (
         <section
-          id="best-hour-callout-card"
-          className="bg-emerald-50 border-2 border-emerald-500 rounded-2xl p-4 shadow-xs"
+          id="lowest-rain-hour-highlight"
+          className="bg-emerald-50 border-2 border-emerald-600 rounded-2xl p-4 sm:p-5 text-emerald-950 shadow-xs"
         >
           <div className="flex items-start gap-3">
             <div className="p-2.5 bg-emerald-600 text-white rounded-xl shrink-0 mt-0.5">
               <Sparkles className="w-6 h-6" aria-hidden="true" />
             </div>
             <div className="flex-1">
-              <div className="flex items-center gap-2 flex-wrap">
-                <span className="text-xs font-extrabold uppercase tracking-wide bg-emerald-700 text-white px-2 py-0.5 rounded-sm">
-                  Recommended Head-Out Window
-                </span>
-                <span className="text-xs text-emerald-800 font-semibold flex items-center gap-1">
-                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-700" />
-                  Lowest Rain Probability
-                </span>
+              <div className="inline-flex items-center gap-1 text-[11px] font-bold uppercase tracking-wider bg-emerald-100 text-emerald-900 px-2.5 py-0.5 rounded-full border border-emerald-300 mb-1">
+                <CheckCircle2 className="w-3.5 h-3.5" />
+                Recommended Window
               </div>
-
-              <div className="mt-2 flex flex-col sm:flex-row sm:items-baseline sm:justify-between gap-1">
-                <div>
-                  <span className="text-2xl sm:text-3xl font-extrabold text-emerald-950">
-                    {bestHour.hour}
-                  </span>
-                  <span className="text-sm font-medium text-emerald-900 ml-2">
-                    ({bestHour.condition}, {bestHour.temperatureC}°C)
-                  </span>
-                </div>
-                <div className="text-sm font-bold text-emerald-900 bg-white/90 border border-emerald-300 px-3 py-1 rounded-lg shrink-0 self-start sm:self-auto">
-                  Only {bestHour.rainChancePercent}% rain chance
-                </div>
-              </div>
-
-              <p className="text-xs text-emerald-800 mt-1.5 leading-relaxed">
-                If you are planning outdoor activities or commuting in{" "}
-                <strong className="font-semibold">{selectedNeighbourhood.name}</strong>, this is your driest window within the next 12 hours.
+              <h2 className="text-xl sm:text-2xl font-black text-emerald-950">
+                Lowest rain risk at {bestHour.hour}
+              </h2>
+              <p className="text-sm text-emerald-900 mt-1">
+                Chance of rain is just{" "}
+                <span className="font-extrabold text-emerald-950 text-base">
+                  {bestHour.rainChancePercent}%
+                </span>{" "}
+                with {bestHour.condition} skies and {bestHour.temperatureC}°C.
               </p>
             </div>
           </div>
         </section>
       )}
 
-      {/* Hourly Forecast Table / List */}
+      {/* Hourly Timeline List */}
       <section
         id="hourly-forecast-list"
-        aria-label="Next 12 Hours Forecast"
-        className="space-y-2.5"
+        aria-label="12-Hour Hourly Forecast Timeline"
+        className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden"
       >
-        <div className="flex items-center justify-between px-1 text-xs font-bold uppercase tracking-wider text-slate-500">
-          <span>12-Hour Timeline</span>
-          <span>Time &bull; Condition &bull; Rain Risk</span>
+        <div className="px-4 py-3 bg-slate-50 border-b border-slate-200 flex items-center justify-between">
+          <span className="text-xs font-bold uppercase tracking-wider text-slate-600 flex items-center gap-1.5">
+            <Clock className="w-4 h-4 text-slate-500" />
+            12-Hour Projection (SGT)
+          </span>
+          <span className="text-xs text-slate-500 font-medium">
+            12 Consecutive Hours
+          </span>
         </div>
 
-        {hourlyRows.map((row) => {
-          const isBestHour = bestHour?.id === row.id;
+        <ul className="divide-y divide-slate-100" role="list">
+          {hourlyRows.map((row) => {
+            const isLowest = bestHour?.id === row.id;
 
-          return (
-            <div
-              key={row.id}
-              id={`hourly-row-${row.id}`}
-              className={`rounded-xl p-3.5 sm:p-4 border transition-all ${
-                isBestHour
-                  ? "bg-emerald-50/70 border-emerald-500 ring-2 ring-emerald-400 shadow-sm"
-                  : "bg-white border-slate-200 shadow-xs"
-              }`}
-            >
-              <div className="flex items-center justify-between gap-3">
-                {/* Time & Highlight Badge */}
-                <div className="w-28 sm:w-36 shrink-0">
-                  <div className="flex items-center gap-1.5 text-base sm:text-lg font-bold text-slate-900">
-                    <Clock className="w-4 h-4 text-slate-400 shrink-0" aria-hidden="true" />
-                    <span>{row.hour}</span>
-                  </div>
-                  {isBestHour ? (
-                    <span className="inline-block mt-0.5 text-[11px] font-extrabold uppercase tracking-tight bg-emerald-600 text-white px-1.5 py-0.5 rounded-sm">
-                      Driest Hour
-                    </span>
-                  ) : (
-                    <span className="text-xs text-slate-500">Singapore Time</span>
-                  )}
-                </div>
-
-                {/* Weather Condition & Icon */}
-                <div className="flex-1 flex items-center gap-2.5 min-w-0">
-                  <div className="p-2 bg-slate-50 rounded-lg shrink-0 border border-slate-100">
+            return (
+              <li
+                key={row.id}
+                id={`hour-row-${row.hour.replace(/\s+/g, "-").replace(/:/g, "")}`}
+                className={`p-3.5 sm:p-4 transition-colors flex items-center justify-between gap-3 ${
+                  isLowest
+                    ? "bg-emerald-50/70 border-l-4 border-emerald-600 font-medium"
+                    : "hover:bg-slate-50/80"
+                }`}
+              >
+                {/* Time & Condition */}
+                <div className="flex items-center gap-3 min-w-[130px] sm:min-w-[160px]">
+                  <div className="p-2 bg-slate-100 rounded-lg shrink-0">
                     <WeatherIcon condition={row.condition} className="w-6 h-6" size={24} />
                   </div>
-                  <div className="min-w-0">
-                    <div className="text-sm sm:text-base font-semibold text-slate-900 truncate">
-                      {row.condition}
+                  <div>
+                    <div className="text-base sm:text-lg font-bold text-slate-900 flex items-center gap-1.5">
+                      <span>{row.hour}</span>
+                      {isLowest && (
+                        <span className="text-[10px] font-black uppercase tracking-wider bg-emerald-600 text-white px-1.5 py-0.2 rounded-sm">
+                          Best
+                        </span>
+                      )}
                     </div>
-                    <div className="text-xs text-slate-500">
-                      {row.temperatureC}°C
+                    <div className="text-xs text-slate-600 font-medium">
+                      {row.condition}
                     </div>
                   </div>
                 </div>
 
-                {/* Rain Probability Badge */}
-                <div className="text-right shrink-0">
-                  <div className="flex items-center justify-end gap-1">
-                    <Droplets
-                      className={`w-4 h-4 ${
-                        row.rainChancePercent >= 60
-                          ? "text-blue-600"
-                          : row.rainChancePercent >= 30
-                          ? "text-sky-500"
-                          : "text-emerald-500"
-                      }`}
-                      aria-hidden="true"
-                    />
+                {/* Rain Probability with Visual Bar */}
+                <div className="flex-1 max-w-[140px] sm:max-w-[200px] px-2">
+                  <div className="flex items-center justify-between text-xs mb-1">
+                    <span className="text-slate-500 flex items-center gap-1 font-medium">
+                      <Droplets className="w-3.5 h-3.5 text-sky-600" />
+                      Rain
+                    </span>
                     <span
-                      className={`text-base sm:text-lg font-extrabold ${
+                      className={`font-bold ${
                         row.rainChancePercent >= 60
-                          ? "text-blue-900"
+                          ? "text-rose-700 font-extrabold"
                           : row.rainChancePercent >= 30
-                          ? "text-slate-800"
-                          : "text-emerald-800"
+                          ? "text-amber-700 font-bold"
+                          : "text-emerald-700 font-bold"
                       }`}
                     >
                       {row.rainChancePercent}%
                     </span>
                   </div>
-                  <div className="text-[11px] font-medium text-slate-500">
-                    rain chance
+                  <div className="w-full bg-slate-200 h-2 rounded-full overflow-hidden">
+                    <div
+                      className={`h-full rounded-full transition-all ${
+                        row.rainChancePercent >= 60
+                          ? "bg-rose-500"
+                          : row.rainChancePercent >= 30
+                          ? "bg-amber-500"
+                          : "bg-emerald-500"
+                      }`}
+                      style={{ width: `${row.rainChancePercent}%` }}
+                    />
                   </div>
                 </div>
-              </div>
 
-              {/* Progress bar visual for rain probability */}
-              <div className="w-full bg-slate-100 h-1.5 rounded-full mt-2.5 overflow-hidden">
-                <div
-                  className={`h-full rounded-full transition-all ${
-                    row.rainChancePercent >= 60
-                      ? "bg-blue-600"
-                      : row.rainChancePercent >= 30
-                      ? "bg-sky-400"
-                      : "bg-emerald-400"
-                  }`}
-                  style={{ width: `${Math.max(row.rainChancePercent, 6)}%` }}
-                />
-              </div>
-            </div>
-          );
-        })}
+                {/* Temperature in °C */}
+                <div className="text-right shrink-0 min-w-[50px]">
+                  <div className="text-lg sm:text-xl font-extrabold text-slate-900">
+                    {row.temperatureC}°C
+                  </div>
+                  <div className="text-[10px] text-slate-400 font-medium uppercase">
+                    Temp
+                  </div>
+                </div>
+              </li>
+            );
+          })}
+        </ul>
       </section>
     </div>
   );

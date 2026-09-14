@@ -6,33 +6,49 @@ import {
   CloudDrizzle,
   CloudLightning,
   CloudRain,
+  CloudFog,
 } from "lucide-react";
 
 interface WeatherIconProps {
-  condition: string;
+  condition?: string | null;
   className?: string;
   size?: number;
 }
 
 export const WeatherIcon: React.FC<WeatherIconProps> = ({
-  condition,
+  condition = "",
   className = "w-6 h-6",
   size,
 }) => {
-  switch (condition) {
-    case "Sunny":
-      return <Sun className={`text-amber-500 ${className}`} size={size} aria-hidden="true" />;
-    case "Partly Cloudy":
-      return <CloudSun className={`text-amber-600 ${className}`} size={size} aria-hidden="true" />;
-    case "Cloudy":
-      return <Cloud className={`text-slate-500 ${className}`} size={size} aria-hidden="true" />;
-    case "Passing Showers":
-      return <CloudDrizzle className={`text-blue-500 ${className}`} size={size} aria-hidden="true" />;
-    case "Thundery Showers":
-      return <CloudLightning className={`text-indigo-600 ${className}`} size={size} aria-hidden="true" />;
-    case "Heavy Rain":
-      return <CloudRain className={`text-blue-700 ${className}`} size={size} aria-hidden="true" />;
-    default:
-      return <CloudSun className={`text-slate-500 ${className}`} size={size} aria-hidden="true" />;
+  const cond = (condition || "").toLowerCase().trim();
+
+  if (cond.includes("thunder") || cond.includes("lightning")) {
+    return <CloudLightning className={`text-indigo-600 ${className}`} size={size} aria-hidden="true" />;
   }
+
+  if (cond.includes("heavy rain") || cond.includes("heavy showers") || cond.includes("moderate rain")) {
+    return <CloudRain className={`text-blue-700 ${className}`} size={size} aria-hidden="true" />;
+  }
+
+  if (cond.includes("shower") || cond.includes("rain") || cond.includes("drizzle")) {
+    return <CloudDrizzle className={`text-blue-500 ${className}`} size={size} aria-hidden="true" />;
+  }
+
+  if (cond.includes("partly cloudy")) {
+    return <CloudSun className={`text-amber-600 ${className}`} size={size} aria-hidden="true" />;
+  }
+
+  if (cond.includes("cloudy")) {
+    return <Cloud className={`text-slate-500 ${className}`} size={size} aria-hidden="true" />;
+  }
+
+  if (cond.includes("hazy") || cond.includes("fog") || cond.includes("mist")) {
+    return <CloudFog className={`text-amber-700 ${className}`} size={size} aria-hidden="true" />;
+  }
+
+  if (cond.includes("fair") || cond.includes("sunny") || cond.includes("clear")) {
+    return <Sun className={`text-amber-500 ${className}`} size={size} aria-hidden="true" />;
+  }
+
+  return <CloudSun className={`text-slate-500 ${className}`} size={size} aria-hidden="true" />;
 };
