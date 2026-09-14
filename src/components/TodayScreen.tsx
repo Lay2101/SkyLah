@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import {
   MapPin,
   Clock,
@@ -9,6 +9,8 @@ import {
 } from "lucide-react";
 import { formatSingaporeTime, isForecastExpired } from "../data/weatherData";
 import { WeatherIcon } from "./WeatherIcon";
+import { TipCard } from "./TipCard";
+import { AudienceType } from "../data/weatherSuggestions";
 
 export type ForecastState =
   | "loading"
@@ -44,6 +46,9 @@ export const TodayScreen: React.FC<TodayScreenProps> = ({
   sourceTimestamps,
   onRetry,
 }) => {
+  // Audience selection state defaults to "just_me"
+  const [selectedAudience, setSelectedAudience] = useState<AudienceType>("just_me");
+
   // Find current area forecast
   const currentArea = allAreas.find(
     (a) => a.name.toLowerCase() === selectedAreaName.toLowerCase()
@@ -52,6 +57,13 @@ export const TodayScreen: React.FC<TodayScreenProps> = ({
 
   // Check if forecast timestamp is older than validity
   const isStale = isForecastExpired(validPeriod?.end || sourceTimestamps?.updateTimestamp || null);
+
+  // Forecast is valid and fresh only when API returned success, has a forecast description, and is not expired
+  const isValidAndFresh =
+    forecastState === "success" &&
+    !isLoading &&
+    Boolean(realForecastText) &&
+    !isStale;
 
   // Quick areas for convenient mobile switching
   const quickAreas = ["City", "Ang Mo Kio", "Bedok", "Jurong West", "Woodlands", "Tampines"];
@@ -389,6 +401,16 @@ export const TodayScreen: React.FC<TodayScreenProps> = ({
           </div>
         )}
       </section>
+
+      {/* "A little tip for your day" Card below the real forecast */}
+      <TipCard
+        forecastText={realForecastText}
+        selectedAreaName={selectedAreaName}
+        validPeriod={validPeriod}
+        selectedAudience={selectedAudience}
+        onSelectAudience={(aud) => setSelectedAudience(aud)}
+        isValidAndFresh={isValidAndFresh}
+      />
     </div>
   );
 };
