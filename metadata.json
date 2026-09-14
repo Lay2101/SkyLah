@@ -1,0 +1,7 @@
+{
+  "name": "SkyLah",
+  "description": "Weather forecast web product helping commuters in Singapore decide when to head out and whether they need an umbrella.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
+
